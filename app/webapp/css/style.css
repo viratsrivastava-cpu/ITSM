@@ -1,0 +1,388 @@
+html, body { height: 100%; margin: 0; background: #eef2ff; }
+.appBg { background: #eef2ff; padding: 12px; }
+ 
+.headerCard {
+  background: linear-gradient(180deg,#f4f6ff,#e9edff);
+  border-radius: 14px; padding: 18px 22px; margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.05);
+}
+.headerTitle { color:#3f4ff0; font-size: 26px; font-weight: 700; }
+.headerSub { color:#6b7280; font-size: 13px; margin-top: 2px; }
+ 
+.sectionCard {
+  background:#fff; border-radius: 14px; padding: 18px 20px; margin-bottom: 18px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.05);
+}
+.sectionPill {
+  display:inline-block; background:#e5e7eb; color:#374151;
+  padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight:600;
+  margin-bottom: 12px;
+}
+ 
+/* sap.m.Button paints its visible surface on the nested .sapMBtnInner span,
+   not on the outer <button> the "class" attribute lands on — so these
+   target .sapMBtnInner (a real descendant), not "button" (which the class
+   already IS, making a descendant selector never match anything). */
+.saveBtn .sapMBtnInner {
+  background:#3b82f6 !important; border-color:#3b82f6 !important;
+  border-radius: 12px !important;
+  transition: background .15s ease;
+}
+.saveBtn .sapMBtnContent, .saveBtn bdi, .saveBtn .sapUiIcon { color:#fff !important; }
+.saveBtn:hover .sapMBtnInner { background:#2563eb !important; border-color:#2563eb !important; }
+ 
+.submitBtn .sapMBtnInner {
+  background:#2563eb !important; border-color:#2563eb !important;
+  border-radius: 12px !important;
+  transition: background .15s ease;
+}
+.submitBtn .sapMBtnContent, .submitBtn bdi, .submitBtn .sapUiIcon { color:#fff !important; }
+.submitBtn:hover .sapMBtnInner { background:#1d4ed8 !important; border-color:#1d4ed8 !important; }
+ 
+/* ---- Change-history timeline: a plain sap.m List styled to read as a
+   connected vertical timeline (sap.m.Timeline isn't in this UI5 build). ---- */
+.timelineList .sapMLIB {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+.timelineRow { gap: 12px; align-items: flex-start; padding: 2px 0; }
+.timelineDot {
+  position: relative;
+  flex: none;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: #2563eb; color: #fff !important;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  margin-top: 2px;
+}
+.timelineDot::after {
+  content: ''; position: absolute; top: 26px; left: 50%;
+  width: 2px; height: 42px; transform: translateX(-50%);
+  background: #e5e7eb;
+}
+.timelineList .sapMLIB:last-child .timelineDot::after { display: none; }
+.timelineBody {
+  flex: 1; min-width: 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f1f4ff;
+  margin-bottom: 2px;
+}
+.timelineTitle { font-weight: 700; color: #1e2a5e; font-size: 13px; }
+.timelineDate { color: #9ca3af; font-size: 11px; white-space: nowrap; }
+.timelineText { color: #374151; font-size: 13px; margin-top: 2px; }
+.timelineUser { color: #6b7280; font-size: 11px; margin-top: 2px; }
+ 
+.uploadCard {
+  background:#fff; border-radius:14px; padding:28px; text-align:center;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.05);
+}
+ 
+/* View mode: fields are read-only already, but fade the whole section too
+   so it visibly reads as "look, don't touch" until Edit is pressed. */
+.formFaded {
+  opacity: .85;
+  pointer-events: none;
+  transition: opacity .2s ease;
+}
+ 
+/* ===== Dense dashboard layout ===== */
+.densePage .sapMPageScroll,
+.densePage.appBg { padding: 12px 16px 16px; box-sizing: border-box; }
+ 
+/* ---- styled app header ---- */
+/* --- sirf margins + header button visibility --- */
+ 
+/* cards/blocks ko left-right + top-bottom margin (edges se hatt jayenge) */
+.appHeader,
+.tileRow,
+.splitRow,
+.sectionCard,
+.uploadCard {
+  width: auto !important;
+  margin-left: 16px !important;
+  margin-right: 16px !important;
+}
+.appHeader {
+  margin-top: 14px !important;
+  background: #021a86 !important;
+  border-radius: 12px;
+  padding: 4px 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.12);
+}
+/* sap.m.Bar's own theme CSS fixes the bar (and its Left/Middle/Right
+   container divs) to a single-line height with overflow left visible —
+   a 2-line title+subtitle stack then simply pokes out above/below the
+   navy box instead of growing it. Force every level to size to content. */
+.appHeaderTitle {
+  color: #fff !important;
+  font-weight: 700 !important;
+}
+/* Subtitle for Main/detail pages lives in normal page flow just below the
+   bar (see .pageSubtitle) — sap.m.Bar in this theme is single-line only;
+   an in-bar 2-line stack overflows its fixed-height Left/Middle/Right
+   containers instead of growing them. */
+.pageSubtitleBlock { margin: 4px 20px 0; }
+.pageTicketId {
+  color: #1e2a5e !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+.pageSubtitle {
+  color: #6b7280 !important;
+  font-size: 12px !important;
+  margin: 1px 0 0;
+}
+ 
+/* navy header pe Reset / View All buttons ko white karo (warna navy-on-navy = invisible) */
+.appHeader .sapMBtnContent,
+.appHeader .sapUiIcon,
+.appHeader bdi {
+  color: #fff !important;
+}
+.appHeader .sapMBtn .sapMBtnInner {
+  border-color: rgba(255,255,255,.35) !important;
+}
+.appHeader .sapMBtn:hover .sapMBtnInner {
+  background: rgba(255,255,255,.16) !important;
+  border-color: transparent !important;
+}
+ 
+/* Reset / View All Tickets: solid white pill so they read as actions in
+   their own right, not just ghost text on the navy bar. Tinted on hover. */
+.headerActionBtn .sapMBtnInner {
+  background: #fff !important;
+  border-color: #fff !important;
+  border-radius: 12px !important;
+  min-height: 1.75rem !important;
+  padding: 0 10px !important;
+  transition: background .15s ease;
+}
+.headerActionBtn .sapMBtnContent,
+.headerActionBtn .sapUiIcon,
+.headerActionBtn bdi {
+  color: #021a86 !important;
+  font-size: 12px !important;
+}
+.headerActionBtn:hover .sapMBtnInner {
+  background: #dbe4ff !important;
+  border-color: #dbe4ff !important;
+}
+ 
+/* ---- profile avatar in the header + its popover card ---- */
+.profileAvatar {
+  cursor: pointer;
+  background: rgba(255,255,255,.18) !important;
+  color: #fff !important;
+  transition: background .15s ease;
+}
+.profileAvatar:hover {
+  background: rgba(255,255,255,.32) !important;
+}
+.profileCard { text-align: center; }
+.profileCard .profileName { font-size: 14px; font-weight: 700; color: #1e2a5e; }
+.profileCard .profileRole { font-size: 12px; color: #6b7280; margin-top: 1px; }
+.profileCard .profileEmail { font-size: 12px; color: #9ca3af; margin-top: 6px; }
+ 
+/* ---- KPI tiles: compact, equal, one line ---- */
+.tileRow {
+  gap: 10px;
+  align-items: stretch;
+  margin: 14px 0 12px;
+}
+.kpiTile {
+  min-width: 0 !important;
+  margin: 0 !important;
+  border-radius: 12px;
+  border-left: 4px solid transparent;
+  transition: box-shadow .15s ease, transform .15s ease;
+}
+.kpiTile:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,.08); }
+/* Hover shadow tints toward each tile's own accent color instead of a
+   generic grey glow — same hue as the border-left/icon, kept very light. */
+.kpiTile.acc1:hover { box-shadow: 0 6px 16px rgba(2,26,134,.22); }
+.kpiTile.acc2:hover { box-shadow: 0 6px 16px rgba(29,78,216,.22); }
+.kpiTile.acc3:hover { box-shadow: 0 6px 16px rgba(237,161,0,.22); }
+.kpiTile.acc4:hover { box-shadow: 0 6px 16px rgba(227,73,72,.22); }
+.kpiTile.acc5:hover { box-shadow: 0 6px 16px rgba(249,115,22,.22); }
+.kpiTile.acc6:hover { box-shadow: 0 6px 16px rgba(34,197,94,.22); }
+.kpiTile.acc7:hover { box-shadow: 0 6px 16px rgba(21,128,61,.22); }
+.kpiTile .sapMGT { border-radius: 12px; }
+.kpiTile.kpiSel .sapMGT,
+.kpiTile.kpiSel {
+  outline: 2px solid #6366f1;
+  outline-offset: -2px;
+  border-radius: 12px;
+}
+ 
+/* Each KPI tile gets its own accent from the header's navy family (plus
+   green/red for done/attention states) so the row reads as 7 distinct
+   tiles at a glance instead of repeating 3 semantic colors. Matched by an
+   explicit .accN class (set in the controller) rather than :nth-child —
+   .kpiTile sits one level inside its own flex-item wrapper div, so
+   :nth-child on .kpiTile itself always evaluates to 1 for every tile. */
+.kpiTile.acc1 { border-left-color: #021a86; } /* Total */
+.kpiTile.acc2 { border-left-color: #1d4ed8; } /* New */
+.kpiTile.acc3 { border-left-color: #eda100; } /* In Process */
+.kpiTile.acc4 { border-left-color: #e34948; } /* Customer Action */
+.kpiTile.acc5 { border-left-color: #f97316; } /* Solution Proposed */
+.kpiTile.acc6 { border-left-color: #22c55e; } /* Confirmed */
+.kpiTile.acc7 { border-left-color: #15803d; } /* Closed */
+ 
+/* Icons pick up the same accent so each tile pops in color, not just a
+   grey glyph next to a colored number. */
+.kpiTile.acc1 .sapUiIcon { color: #021a86 !important; }
+.kpiTile.acc2 .sapUiIcon { color: #1d4ed8 !important; }
+.kpiTile.acc3 .sapUiIcon { color: #eda100 !important; }
+.kpiTile.acc4 .sapUiIcon { color: #e34948 !important; }
+.kpiTile.acc5 .sapUiIcon { color: #f97316 !important; }
+.kpiTile.acc6 .sapUiIcon { color: #22c55e !important; }
+.kpiTile.acc7 .sapUiIcon { color: #15803d !important; }
+ 
+/* ---- table + chart share the row and fit the viewport ---- */
+.splitRow {
+  gap: 12px;
+  align-items: stretch;
+  height: calc(100vh - 200px);
+  min-height: 320px;
+}
+.tablePane {
+  flex: 1 1 520px;
+  min-width: 0;
+  height: 100%;
+  overflow: auto;
+  background: #fff;
+  border-radius: 14px;
+  padding: 4px 12px 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+.chartPane {
+  flex: 0 0 340px;
+  min-width: 300px;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  transition: flex-basis .3s ease, min-width .3s ease, padding .3s ease;
+}
+.chartPane .sectionPill { margin-bottom: 8px; }
+ 
+/* Collapsed: shrink the whole card down to a thin strip holding just the
+   toggle button, handing its width back to the table pane next to it. */
+.chartPane.chartCollapsed {
+  flex: 0 0 44px;
+  min-width: 44px;
+  padding: 12px 6px;
+}
+.chartPane.chartCollapsed .sectionPill,
+.chartPane.chartCollapsed .chartBody {
+  display: none;
+}
+.chartToggleBtn .sapUiIcon { color: #6b7280 !important; }
+ 
+.chartHeadActions { gap: 2px; }
+.analyticsBtn .sapMBtnInner {
+  border-radius: 10px !important;
+  min-height: 1.6rem !important;
+  padding: 0 8px !important;
+}
+.analyticsBtn .sapMBtnContent,
+.analyticsBtn bdi,
+.analyticsBtn .sapUiIcon {
+  color: #021a86 !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+.analyticsBtn:hover .sapMBtnInner { background: #eef2ff !important; }
+.chartPane.chartCollapsed .analyticsBtn { display: none; }
+ 
+/* ---- donut + its color key side by side (chart shifted left, key fills
+   the rest — stands in for the chart's own legend, which is off) ---- */
+.chartRow { gap: 8px; }
+.chartKey { flex: 1 1 auto; min-width: 0; gap: 3px; justify-content: center; }
+.keyRow { gap: 6px; padding: 1px 0; }
+.keyDot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #9ca3af; }
+.keyLabel {
+  font-size: 11px; font-weight: 600; color: #374151;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Same 6-color palette as the donut's own colorPalette (CHART_PALETTE in
+   the controller), in the same order it cycles through. */
+.keyRow.keyAcc1 .keyDot { background: #2a78d6; }
+.keyRow.keyAcc2 .keyDot { background: #eb6834; }
+.keyRow.keyAcc3 .keyDot { background: #1baf7a; }
+.keyRow.keyAcc4 .keyDot { background: #eda100; }
+.keyRow.keyAcc5 .keyDot { background: #e87ba4; }
+.keyRow.keyAcc6 .keyDot { background: #4a3aa7; }
+ 
+/* ---- ranked category list under the donut: exact counts + share ---- */
+.catList .sapMLIB {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+.catRow { padding: 5px 0; }
+.catName { font-size: 12px; font-weight: 600; color: #1e2a5e; }
+.catCount { font-size: 12px; font-weight: 700; color: #374151; }
+.catBar { height: 6px; border-radius: 3px; margin-top: 3px; }
+.catBar .sapMPIBarLeft { border-radius: 3px 0 0 3px; }
+.catBar .sapMPIBarRight { border-radius: 0 3px 3px 0; }
+ 
+/* ---- analytics page: category shortcut tiles (small, colored by the
+   same palette as the dashboard's donut) ---- */
+.catTileRow { gap: 10px; margin-top: 4px; }
+.catTile {
+  min-width: 0 !important;
+  margin: 0 !important;
+  border-radius: 12px;
+  border-left: 4px solid transparent;
+  cursor: pointer;
+  transition: box-shadow .15s ease, transform .15s ease;
+}
+.catTile:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,.08); }
+.catTile .sapMGT { width: 92px !important; height: 92px !important; border-radius: 12px; }
+.catTile.catAcc1 { border-left-color: #2a78d6; }
+.catTile.catAcc2 { border-left-color: #eb6834; }
+.catTile.catAcc3 { border-left-color: #1baf7a; }
+.catTile.catAcc4 { border-left-color: #eda100; }
+.catTile.catAcc5 { border-left-color: #e87ba4; }
+.catTile.catAcc6 { border-left-color: #4a3aa7; }
+ 
+/* ---- analytics page: trends card's header pill (reuses .tablePane's
+   card styling, which is otherwise built around a Table's own toolbar) ---- */
+.tablePane .sectionPill { margin: 6px 0 8px 4px; }
+.tablePane .sapMSelect { margin-bottom: 8px; }
+ 
+/* ---- analytics page: SLA compliance summary ---- */
+.slaSummaryRow { gap: 28px; margin: 4px 0 14px 4px; }
+.slaStatValue { font-size: 28px; font-weight: 700; line-height: 1.1; }
+.slaStatValue.slaMet { color: #16a34a; }
+.slaStatValue.slaBreached { color: #dc2626; }
+.slaStatLabel { font-size: 12px; color: #6b7280; margin-top: 2px; }
+ 
+/* ---- table headings: bolder + a faint navy-family tint so they separate
+   clearly from the data rows ---- */
+.sapMListTblHeader,
+.sapMListTblHeader.sapMListTblRow {
+  background: #f1f4ff;
+}
+.sapMListTblHeaderCell,
+.sapMListTblHeaderCell .sapMText {
+  font-weight: 700 !important;
+  color: #1e2a5e;
+}
+ 
+/* ---- other pages: header card was eating too much vertical space for a
+   one-line title; shrink it to match the dashboard's dense feel ---- */
+.headerCard {
+  padding: 12px 18px;
+  margin-bottom: 10px;
+}
+.headerTitle { font-size: 19px; line-height: 1.25; }
+.headerSub { margin-top: 1px; }
+ 

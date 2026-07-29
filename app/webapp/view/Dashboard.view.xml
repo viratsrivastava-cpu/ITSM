@@ -1,0 +1,253 @@
+<mvc:View
+  controllerName="itsm.ui.controller.Dashboard"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:viz="sap.viz.ui5.controls"
+  xmlns:vizData="sap.viz.ui5.data"
+  xmlns:vizFeed="sap.viz.ui5.controls.common.feeds"
+  displayBlock="true">
+ 
+  <Page id="dashPage" showHeader="false" backgroundDesign="Transparent" class="appBg densePage">
+ 
+    <!-- ===== styled app header: logo (left) · title (center) · actions (right) ===== -->
+    <Bar class="appHeader">
+      <contentLeft>
+        <Image src="images/ccentrik.png" height="30px" densityAware="false" class="appLogo" press=".onGoDashboard"/>
+      </contentLeft>
+      <contentMiddle>
+        <Title text="Service Desk Dashboard" class="appHeaderTitle"/>
+      </contentMiddle>
+      <contentRight>
+        <Button icon="sap-icon://action-settings" tooltip="Choose which 7 KPI tiles to show" type="Transparent"
+                class="headerActionBtn" press=".onManageTiles"/>
+      </contentRight>
+    </Bar>
+ 
+    <!-- ===== KPI tile picker: choose exactly 7 tiles from the full pool
+         (status/priority/SLA-metric tiles). Save disabled until exactly
+         7 are checked. ===== -->
+    <Dialog id="tilePickerDialog" title="Choose 7 KPI Tiles" contentWidth="26rem" contentHeight="28rem">
+      <Text text="{= ${tp>/selectedCount} + ' of ' + ${tp>/tileCount} + ' selected'}" class="sapUiSmallMargin tilePickerCount"/>
+      <List id="tilePickerList" mode="MultiSelect" items="{tp>/allTiles}" selectionChange=".onTilePickerSelectionChange">
+        <StandardListItem title="{tp>label}" selected="{tp>selected}"/>
+      </List>
+      <beginButton>
+        <Button text="Save" type="Emphasized" enabled="{tp>/canSave}" press=".onSaveTileSelection"/>
+      </beginButton>
+      <endButton>
+        <Button text="Cancel" press=".onCancelTileSelection"/>
+      </endButton>
+    </Dialog>
+ 
+    <!-- ===== Table settings picker: choose exactly 3 filters (out of the
+         full pool) to show in the table toolbar, and any columns (out of
+         the full pool) to show in the table. Save disabled until exactly
+         3 filters are checked. ===== -->
+    <Dialog id="tableSettingsDialog" title="Table Settings" contentWidth="26rem" contentHeight="34rem">
+      <IconTabBar id="tableSettingsTabBar" expanded="true">
+        <items>
+          <IconTabFilter text="Filters">
+            <Text text="{= ${ts>/selectedFilterCount} + ' of ' + ${ts>/filterCount} + ' selected'}" class="sapUiSmallMargin tilePickerCount"/>
+            <List id="filterPickerList" mode="MultiSelect" items="{ts>/allFilters}" selectionChange=".onFilterPickerSelectionChange">
+              <StandardListItem title="{ts>label}" selected="{ts>selected}"/>
+            </List>
+          </IconTabFilter>
+          <IconTabFilter text="Columns">
+            <Text text="{= ${ts>/selectedColumnCount} + ' of max ' + ${ts>/maxColumns} + ' columns selected'}" class="sapUiSmallMargin tilePickerCount"/>
+            <List id="columnPickerList" mode="MultiSelect" items="{ts>/allColumns}" selectionChange=".onColumnPickerSelectionChange">
+              <StandardListItem title="{ts>label}" selected="{ts>selected}"/>
+            </List>
+          </IconTabFilter>
+        </items>
+      </IconTabBar>
+      <beginButton>
+        <Button text="Save" type="Emphasized" enabled="{ts>/canSave}" press=".onSaveTableSettings"/>
+      </beginButton>
+      <endButton>
+        <Button text="Cancel" press=".onCancelTableSettings"/>
+      </endButton>
+    </Dialog>
+ 
+    <!-- ===== KPI tiles: one line, equal flexible width =====
+         Accent/selection classes are applied in the controller via
+         addStyleClass (see onTilesUpdated) — binding the "class"
+         attribute itself (plain or expression syntax) silently fails
+         to resolve for this control in this UI5 build. -->
+    <HBox id="tileRow" class="tileRow" width="100%" items="{dash>/tiles}">
+      <VBox class="kpiTileWrap">
+        <layoutData>
+          <FlexItemData growFactor="1" baseSize="0"/>
+        </layoutData>
+        <GenericTile
+          header="{dash>label}"
+          frameType="OneByHalf"
+          width="100%"
+          state="Loaded"
+          press=".onTilePress"
+          class="kpiTile">
+          <TileContent>
+            <NumericContent value="{dash>count}" valueColor="{dash>color}" icon="{dash>icon}" withMargin="false"/>
+          </TileContent>
+        </GenericTile>
+        <Text text="{dash>trendLabel}" class="trendBadge"/>
+      </VBox>
+    </HBox>
+ 
+    <!-- ===== split: table (left, wide) + chart (right, narrow) ===== -->
+    <HBox class="splitRow" wrap="Wrap" width="100%" alignItems="Stretch">
+ 
+      <!-- TABLE -->
+      <VBox class="tablePane">
+        <Table
+          id="dashTable"
+          inset="false"
+          growing="true"
+          growingThreshold="50"
+          sticky="ColumnHeaders,HeaderToolbar"
+          items="{
+            path: '/Tickets',
+            parameters: {
+              $filter: 'IsActiveEntity eq true',
+              $expand: 'status($select=name),priority($select=name,code),category1($select=name),impact($select=name),urgency($select=name),messageProcessor($select=name)',
+              $orderby: 'createdAt desc'
+            }
+          }"
+          noDataText="No tickets for this selection.">
+ 
+          <headerToolbar>
+            <OverflowToolbar style="Clear">
+              <Title text="{dash>/tableTitle}" level="H5"/>
+              <ToolbarSpacer/>
+              <Select id="statusFilter" width="9rem" items="{filters>/statuses}" change=".onFilterChange" visible="{cols>/filterVisible/STATUS}">
+                <core:Item key="{filters>code}" text="{filters>name}"/>
+              </Select>
+              <Select id="categoryFilter" width="9rem" items="{filters>/categories}" change=".onFilterChange" visible="{cols>/filterVisible/CATEGORY}">
+                <core:Item key="{filters>code}" text="{filters>name}"/>
+              </Select>
+              <Select id="priorityFilter" width="9rem" items="{filters>/priorities}" change=".onFilterChange" visible="{cols>/filterVisible/PRIORITY}">
+                <core:Item key="{filters>code}" text="{filters>name}"/>
+              </Select>
+              <Select id="assigneeFilter" width="9rem" items="{filters>/assignees}" change=".onFilterChange" visible="{cols>/filterVisible/ASSIGNEE}">
+                <core:Item key="{filters>code}" text="{filters>name}"/>
+              </Select>
+              <Select id="impactFilter" width="9rem" items="{filters>/impacts}" change=".onFilterChange" visible="{cols>/filterVisible/IMPACT}">
+                <core:Item key="{filters>code}" text="{filters>name}"/>
+              </Select>
+              <Select id="urgencyFilter" width="9rem" items="{filters>/urgencies}" change=".onFilterChange" visible="{cols>/filterVisible/URGENCY}">
+                <core:Item key="{filters>code}" text="{filters>name}"/>
+              </Select>
+              <SearchField width="16rem" placeholder="Search # or description" search=".onSearch" liveChange=".onSearch"/>
+              <Button icon="sap-icon://action-settings" tooltip="Table settings: choose filters and columns" press=".onManageTableSettings"/>
+              <Button text="Reset" icon="sap-icon://clear-filter" press=".onResetFilters"/>
+              <Button text="New Ticket" icon="sap-icon://add" class="submitBtn" press=".onCreateTicket"/>
+            </OverflowToolbar>
+          </headerToolbar>
+ 
+          <columns>
+            <Column width="7rem" visible="{cols>/columnVisible/TICKET_NUMBER}"><Text text="Ticket #"/></Column>
+            <Column width="16rem" visible="{cols>/columnVisible/SHORT_DESCRIPTION}"><Text text="Short Description"/></Column>
+            <Column width="8rem" visible="{cols>/columnVisible/STATUS}"><Text text="Status"/></Column>
+            <Column width="8rem" visible="{cols>/columnVisible/PRIORITY}"><Text text="Priority"/></Column>
+            <Column width="8rem" visible="{cols>/columnVisible/SLA}"><Text text="SLA"/></Column>
+            <Column width="8rem" visible="{cols>/columnVisible/CATEGORY}"><Text text="Category"/></Column>
+            <Column width="8rem" visible="{cols>/columnVisible/IMPACT}"><Text text="Impact"/></Column>
+            <Column width="8rem" visible="{cols>/columnVisible/URGENCY}"><Text text="Urgency"/></Column>
+            <Column width="9rem" visible="{cols>/columnVisible/ASSIGNEE}"><Text text="Assigned To"/></Column>
+            <Column width="9rem" visible="{cols>/columnVisible/CREATED_ON}"><Text text="Created On"/></Column>
+          </columns>
+ 
+          <items>
+            <ColumnListItem type="Navigation" press=".onTicketPress">
+              <cells>
+                <ObjectIdentifier title="{ticketNumber}"/>
+                <Text text="{shortDescription}"/>
+                <ObjectStatus text="{status/name}" state="{path: 'status/name', formatter: '.formatStatusState'}"/>
+                <ObjectStatus text="{priority/name}" state="{path: 'priority/name', formatter: '.formatPriorityState'}"/>
+                <ObjectStatus
+                  text="{parts: ['priority/code','createdAt','firstResponseAt','completedAt'], formatter: '.formatSlaText'}"
+                  state="{parts: ['priority/code','createdAt','firstResponseAt','completedAt'], formatter: '.formatSlaState'}"/>
+                <Text text="{category1/name}"/>
+                <Text text="{impact/name}"/>
+                <Text text="{urgency/name}"/>
+                <Text text="{messageProcessor/name}"/>
+                <Text text="{ path: 'createdAt', formatter: '.formatDateTime' }"/>
+              </cells>
+            </ColumnListItem>
+          </items>
+        </Table>
+      </VBox>
+ 
+      <!-- CHART: collapsible card (toggle slides it shut left-to-right,
+           handing its width back to the table). The chart's own legend is
+           off (it overflowed into a horizontal scrollbar with several
+           categories) — a custom color key sits beside the (now narrower,
+           left-shifted) donut instead, plus hover tooltip on the slices
+           themselves, and the ranked list below repeats it all as exact
+           counts + share. -->
+      <VBox id="chartPane" class="chartPane">
+        <HBox justifyContent="SpaceBetween" alignItems="Center" width="100%">
+          <Text text="CATEGORY-WISE BREAKDOWN" class="sectionPill"/>
+          <HBox alignItems="Center" class="chartHeadActions">
+            <Button icon="sap-icon://line-chart" type="Transparent"
+                    tooltip="Open analytics dashboard" press=".onGoAnalytics" class="analyticsBtn"/>
+            <Button id="chartToggleBtn" icon="sap-icon://slim-arrow-right" type="Transparent"
+                    tooltip="Collapse chart" press=".onToggleChart" class="chartToggleBtn"/>
+          </HBox>
+        </HBox>
+        <VBox class="chartBody">
+          <HBox class="chartRow" alignItems="Center" width="100%">
+            <viz:VizFrame
+              id="categoryChart"
+              vizType="donut"
+              width="170px"
+              height="220px"
+              uiConfig="{applicationSet:'fiori'}"
+              selectData=".onChartSelect">
+              <viz:dataset>
+                <vizData:FlattenedDataset data="{dash>/categoryData}">
+                  <vizData:dimensions>
+                    <vizData:DimensionDefinition name="Category" value="{dash>name}"/>
+                  </vizData:dimensions>
+                  <vizData:measures>
+                    <vizData:MeasureDefinition name="Tickets" value="{dash>count}"/>
+                  </vizData:measures>
+                </vizData:FlattenedDataset>
+              </viz:dataset>
+              <viz:feeds>
+                <vizFeed:FeedItem uid="size" type="Measure" values="Tickets"/>
+                <vizFeed:FeedItem uid="color" type="Dimension" values="Category"/>
+              </viz:feeds>
+            </viz:VizFrame>
+ 
+            <!-- Which color is which category — the chart's own legend is
+                 off (see note above), so this stands in for it without
+                 the overflow problem. -->
+            <VBox id="chartKeyBox" class="chartKey" items="{dash>/categoryData}">
+              <HBox class="keyRow" alignItems="Center">
+                <VBox class="keyDot"/>
+                <Text text="{dash>name}" class="keyLabel"/>
+              </HBox>
+            </VBox>
+          </HBox>
+ 
+          <!-- Exact counts + share per category, since the donut only reads
+               proportions at a glance. -->
+          <List id="categoryList" items="{dash>/categoryData}" class="sapUiTinyMarginTop catList" noDataText="No category data yet.">
+            <CustomListItem>
+              <VBox class="catRow">
+                <HBox justifyContent="SpaceBetween">
+                  <Text text="{dash>name}" class="catName"/>
+                  <Text text="{dash>count}" class="catCount"/>
+                </HBox>
+                <ProgressIndicator percentValue="{dash>percent}" displayValue="{dash>percent}%" class="catBar" state="Information"/>
+              </VBox>
+            </CustomListItem>
+          </List>
+        </VBox>
+      </VBox>
+ 
+    </HBox>
+  </Page>
+</mvc:View>
+ 

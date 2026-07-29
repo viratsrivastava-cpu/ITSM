@@ -1,0 +1,88 @@
+_schema-version: "3.1"
+ID: itsm
+version: 1.0.0
+description: ITSM Incident Management built with SAP CAP
+
+parameters:
+  enable-parallel-deployments: true
+
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npm install
+        - npx cds build --production
+
+modules:
+  # ---------------------------------------------------------------
+  # 1. The CAP service (Node.js) — our OData API + business logic
+  # ---------------------------------------------------------------
+  - name: itsm-srv
+    type: nodejs
+    path: gen/srv
+    parameters:
+      buildpack: nodejs_buildpack
+      memory: 256M
+      disk-quota: 1024M
+    build-parameters:
+      builder: npm-ci
+    provides:
+      - name: srv-api
+        properties:
+          srv-url: ${default-url}
+    requires:
+      - name: itsm-db
+      - name: itsm-auth
+
+  # ---------------------------------------------------------------
+  # 2. The database deployer — creates HANA tables and loads CSVs,
+  #    then exits. It is a one-shot task, not a running app.
+  # ---------------------------------------------------------------
+  - name: itsm-db-deployer
+    type: hdb
+    path: gen/db
+    parameters:
+      buildpack: nodejs_buildpack
+    build-parameters:
+      builder: npm
+    requires:
+      - name: itsm-db
+
+  # ---------------------------------------------------------------
+  # 3. The approuter — the public entry point. Serves the UI5 app
+  #    and forwards /odata calls to the CAP service with the token.
+  # ---------------------------------------------------------------
+  - name: itsm-approuter
+    type: nodejs
+    path: app
+    parameters:
+      buildpack: nodejs_buildpack
+      memory: 256M
+      disk-quota: 1024M
+    requires:
+      - name: srv-api
+        group: destinations
+        properties:
+          name: srv-api
+          url: ~{srv-url}
+          forwardAuthToken: true
+      - name: itsm-auth
+
+resources:
+  # HANA HDI container — the schema our tables live in
+  - name: itsm-db
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: hdi-shared
+
+  # XSUAA — authentication and authorisation
+  - name: itsm-auth
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+      config:
+        xsappname: itsm-${org}-${space}
+        tenant-mode: dedicated

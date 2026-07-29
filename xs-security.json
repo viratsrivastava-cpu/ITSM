@@ -1,0 +1,51 @@
+{
+  "xsappname": "itsm",
+  "tenant-mode": "dedicated",
+  "description": "Security profile for the ITSM Incident Management application",
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.Agent",
+      "description": "Create and process incidents"
+    },
+    {
+      "name": "$XSAPPNAME.Admin",
+      "description": "Administer master data and all incidents"
+    }
+  ],
+  "attributes": [],
+  "role-templates": [
+    {
+      "name": "Agent",
+      "description": "Service desk agent",
+      "scope-references": [
+        "$XSAPPNAME.Agent"
+      ],
+      "attribute-references": []
+    },
+    {
+      "name": "Admin",
+      "description": "Application administrator",
+      "scope-references": [
+        "$XSAPPNAME.Agent",
+        "$XSAPPNAME.Admin"
+      ],
+      "attribute-references": []
+    }
+  ],
+  "role-collections": [
+    {
+      "name": "IncidentAgent",
+      "description": "Service desk agent",
+      "role-template-references": [
+        "$XSAPPNAME.Agent"
+      ]
+    },
+    {
+      "name": "IncidentAdmin",
+      "description": "Application administrator",
+      "role-template-references": [
+        "$XSAPPNAME.Admin"
+      ]
+    }
+  ]
+}

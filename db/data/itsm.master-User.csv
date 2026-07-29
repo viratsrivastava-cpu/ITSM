@@ -1,0 +1,8 @@
+ID,userId,name,email,isActive
+f1000000-0000-4000-8000-000000000001,jdoe,John Doe,john.doe@ccentrik.com,true
+f1000000-0000-4000-8000-000000000002,asmith,Alice Smith,alice.smith@ccentrik.com,true
+f1000000-0000-4000-8000-000000000003,rraju,Raju Rao,raju.rao@ccentrik.com,true
+f1000000-0000-4000-8000-000000000004,mgarcia,Maria Garcia,maria.garcia@ccentrik.com,true
+f1000000-0000-4000-8000-000000000005,kwong,Kevin Wong,kevin.wong@ccentrik.com,true
+f1000000-0000-4000-8000-000000000006,spatel,Sonia Patel,sonia.patel@ccentrik.com,true
+f1000000-0000-4000-8000-000000000007,tmuller,Thomas Muller,thomas.muller@ccentrik.com,false

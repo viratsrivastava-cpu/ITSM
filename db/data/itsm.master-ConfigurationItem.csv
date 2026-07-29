@@ -1,0 +1,5 @@
+ID,ciCode,name,description
+f5000000-0000-4000-8000-000000000001,CI-SRV-001,PRD Application Server 01,Primary S/4HANA application server
+f5000000-0000-4000-8000-000000000002,CI-DB-001,PRD HANA Database,Production HANA database instance
+f5000000-0000-4000-8000-000000000003,CI-NET-001,Core Switch DC1,Datacenter 1 core network switch
+f5000000-0000-4000-8000-000000000004,CI-WEB-001,Fiori Launchpad,Central Fiori launchpad frontend

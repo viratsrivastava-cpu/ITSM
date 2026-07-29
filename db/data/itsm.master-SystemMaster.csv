@@ -1,0 +1,5 @@
+ID,systemId,name,description
+f3000000-0000-4000-8000-000000000001,S4H_PRD,S/4HANA Production,Production ERP system
+f3000000-0000-4000-8000-000000000002,S4H_QAS,S/4HANA Quality,Quality assurance ERP system
+f3000000-0000-4000-8000-000000000003,BW4_PRD,BW/4HANA Production,Production analytics system
+f3000000-0000-4000-8000-000000000004,SOL_PRD,Solution Manager,Central monitoring and ticketing landscape

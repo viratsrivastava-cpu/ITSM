@@ -1,0 +1,10 @@
+<mvc:View
+  controllerName="itsm.ui.controller.TicketList"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  displayBlock="true">
+
+  <Page id="listPage" title="Tickets">
+  </Page>
+
+</mvc:View>
