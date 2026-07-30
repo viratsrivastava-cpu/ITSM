@@ -30,6 +30,8 @@
         <Button text="Edit" class="saveBtn sapUiTinyMarginEnd" visible="{ui>/showEdit}" press=".onEdit"/>
         <Button text="Save" class="saveBtn sapUiTinyMarginEnd" visible="{ui>/showSave}" press=".onSave"/>
         <Button text="Submit" class="submitBtn" visible="{ui>/showSubmit}" press=".onSubmit"/>
+        <Avatar initials="{user>/initials}" displaySize="XS" tooltip="{user>/name}"
+                class="profileAvatar sapUiTinyMarginBegin" press=".onProfilePress"/>
       </contentRight>
     </Bar>
     <!-- Ticket id (or "New Ticket" before one's assigned) now lives here,

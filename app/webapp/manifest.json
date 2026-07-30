@@ -51,7 +51,7 @@
           "synchronizationMode": "None",
           "operationMode": "Server",
           "autoExpandSelect": true,
-          "earlyRequests": true,
+          "earlyRequests": false,
           "groupId": "$auto",
           "updateGroupId": "itsmGroup"
         }
@@ -70,17 +70,22 @@
         "async": true
       },
       "routes": [
+  { "pattern": "login", "name": "login", "target": "login" },
   { "pattern": "", "name": "dashboard", "target": "dashboard" },
   { "pattern": "tickets", "name": "list", "target": "list" },
   { "pattern": "create", "name": "create", "target": "main" },
   { "pattern": "ticket/{id}", "name": "detail", "target": "main" },
-  { "pattern": "analytics", "name": "analytics", "target": "analytics" }
+  { "pattern": "analytics", "name": "analytics", "target": "analytics" },
+  { "pattern": "service-group", "name": "serviceGroup", "target": "serviceGroup" },
+  { "pattern": "service-group/tickets", "name": "serviceGroupTickets", "target": "serviceGroup" }
 ],
 "targets": {
+  "login": { "viewName": "Login", "viewId": "login" },
   "dashboard": { "viewName": "Dashboard", "viewId": "dashboard" },
   "list": { "viewName": "TicketList", "viewId": "list" },
   "main": { "viewName": "Main", "viewId": "main" },
-  "analytics": { "viewName": "Analytics", "viewId": "analytics" }
+  "analytics": { "viewName": "Analytics", "viewId": "analytics" },
+  "serviceGroup": { "viewName": "ServiceGroup", "viewId": "serviceGroup" }
 }
     }
   }

@@ -1,0 +1,60 @@
+<mvc:View
+  controllerName="itsm.ui.controller.Login"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  displayBlock="true">
+
+  <Page id="loginPage" showHeader="false" backgroundDesign="Transparent" class="appBg loginBg">
+
+    <VBox class="loginWrap" alignItems="Center" justifyContent="Center" width="100%">
+
+      <VBox class="sectionCard loginCard">
+        <VBox alignItems="Center" class="loginBrand">
+          <Image src="images/ccentrik.png" height="34px" densityAware="false"/>
+          <Title text="ITSM Service Desk" class="loginTitle"/>
+          <Text text="Sign in to continue" class="loginSubtitle"/>
+        </VBox>
+
+        <MessageStrip
+          id="loginError"
+          type="Error"
+          showIcon="true"
+          visible="false"
+          class="sapUiSmallMarginBottom"/>
+
+        <Label text="User Name" labelFor="loginUser"/>
+        <Input id="loginUser" placeholder="e.g. jdoe" value="{login>/user}"
+               submit=".onSignIn" class="loginInput"/>
+
+        <Label text="Password" labelFor="loginPassword" class="sapUiTinyMarginTop"/>
+        <Input id="loginPassword" type="Password" value="{login>/password}"
+               submit=".onSignIn" class="loginInput"/>
+
+        <Button text="Sign In" type="Emphasized" width="100%"
+                busy="{login>/busy}" press=".onSignIn"
+                class="submitBtn sapUiSmallMarginTop"/>
+      </VBox>
+
+      <!-- Local development only: the mocked users from package.json, so a
+           role can be switched without retyping credentials. Hidden as soon
+           as the app runs against real XSUAA sign-in, where the approuter
+           has already authenticated the user before this page could load. -->
+      <VBox class="sectionCard loginCard demoCard" visible="{login>/showDemoUsers}">
+        <Text text="LOCAL TEST USERS" class="sectionPill"/>
+        <Text text="Mocked sign-in for local development. Pick one to load the flow as that role." class="loginSubtitle"/>
+        <List items="{login>/demoUsers}" class="catList demoList" noDataText="No mocked users configured.">
+          <CustomListItem type="Active" press=".onDemoUserPress">
+            <HBox class="demoRow" alignItems="Center" justifyContent="SpaceBetween" width="100%">
+              <VBox class="demoMain">
+                <Text text="{login>name}" class="demoName"/>
+                <Text text="{login>userId}" class="demoUserId"/>
+              </VBox>
+              <ObjectStatus text="{login>roleLabel}" state="{login>roleState}"/>
+            </HBox>
+          </CustomListItem>
+        </List>
+      </VBox>
+
+    </VBox>
+  </Page>
+</mvc:View>

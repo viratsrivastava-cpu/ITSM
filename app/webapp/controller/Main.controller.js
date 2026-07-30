@@ -5,8 +5,9 @@ sap.ui.define([
   "sap/ui/model/FilterOperator",
   "sap/ui/model/Sorter",
   "sap/m/MessageToast",
-  "sap/m/MessageBox"
-], function (Controller, JSONModel, Filter, FilterOperator, Sorter, MessageToast, MessageBox) {
+  "sap/m/MessageBox",
+  "itsm/ui/util/UserMenu"
+], function (Controller, JSONModel, Filter, FilterOperator, Sorter, MessageToast, MessageBox, UserMenu) {
   "use strict";
 
   // Root of the category tree. Everything below it is discovered via parent_ID,
@@ -248,6 +249,10 @@ sap.ui.define([
 
     onGoDashboard: function () {
       this.getOwnerComponent().getRouter().navTo("dashboard");
+    },
+
+    onProfilePress: function (oEvent) {
+      UserMenu.open(oEvent.getSource(), this.getOwnerComponent());
     },
 
     /* ---------------------------------------------------------

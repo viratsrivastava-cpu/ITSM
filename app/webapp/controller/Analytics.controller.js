@@ -2,8 +2,9 @@ sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/model/json/JSONModel",
   "sap/ui/model/Filter",
-  "sap/ui/model/FilterOperator"
-], function (Controller, JSONModel, Filter, FilterOperator) {
+  "sap/ui/model/FilterOperator",
+  "itsm/ui/util/UserMenu"
+], function (Controller, JSONModel, Filter, FilterOperator, UserMenu) {
   "use strict";
  
   // Trend line colors: blue for incoming (created), green for done
@@ -326,6 +327,10 @@ sap.ui.define([
  
     onGoDashboard: function () {
       this.getOwnerComponent().getRouter().navTo("dashboard");
+    },
+
+    onProfilePress: function (oEvent) {
+      UserMenu.open(oEvent.getSource(), this.getOwnerComponent());
     },
  
     onTicketPress: function (oEvent) {

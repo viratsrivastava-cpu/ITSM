@@ -19,8 +19,14 @@
         <Title text="Service Desk Dashboard" class="appHeaderTitle"/>
       </contentMiddle>
       <contentRight>
+        <Button icon="sap-icon://group" text="Service Group" type="Transparent"
+                visible="{user>/isServiceGroup}"
+                tooltip="Service Group dashboard: every incident in the system, and assignment"
+                class="headerActionBtn" press=".onGoServiceGroup"/>
         <Button icon="sap-icon://action-settings" tooltip="Choose which 7 KPI tiles to show" type="Transparent"
                 class="headerActionBtn" press=".onManageTiles"/>
+        <Avatar initials="{user>/initials}" displaySize="XS" tooltip="{user>/name}"
+                class="profileAvatar" press=".onProfilePress"/>
       </contentRight>
     </Bar>
  

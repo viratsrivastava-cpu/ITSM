@@ -8,6 +8,10 @@
       "description": "Create and process incidents"
     },
     {
+      "name": "$XSAPPNAME.ServiceGroup",
+      "description": "See every incident in the system and assign them to engineers"
+    },
+    {
       "name": "$XSAPPNAME.Admin",
       "description": "Administer master data and all incidents"
     }
@@ -23,10 +27,20 @@
       "attribute-references": []
     },
     {
+      "name": "ServiceGroup",
+      "description": "Service group dispatcher",
+      "scope-references": [
+        "$XSAPPNAME.Agent",
+        "$XSAPPNAME.ServiceGroup"
+      ],
+      "attribute-references": []
+    },
+    {
       "name": "Admin",
       "description": "Application administrator",
       "scope-references": [
         "$XSAPPNAME.Agent",
+        "$XSAPPNAME.ServiceGroup",
         "$XSAPPNAME.Admin"
       ],
       "attribute-references": []
@@ -38,6 +52,13 @@
       "description": "Service desk agent",
       "role-template-references": [
         "$XSAPPNAME.Agent"
+      ]
+    },
+    {
+      "name": "IncidentServiceGroup",
+      "description": "Service group dispatcher",
+      "role-template-references": [
+        "$XSAPPNAME.ServiceGroup"
       ]
     },
     {

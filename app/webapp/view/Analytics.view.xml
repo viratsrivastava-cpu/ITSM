@@ -22,6 +22,10 @@
       <contentMiddle>
         <Title text="Service Desk Analytics" class="appHeaderTitle"/>
       </contentMiddle>
+      <contentRight>
+        <Avatar initials="{user>/initials}" displaySize="XS" tooltip="{user>/name}"
+                class="profileAvatar" press=".onProfilePress"/>
+      </contentRight>
     </Bar>
  
     <!-- ===== top KPI row: each tile is something to act on, not just a

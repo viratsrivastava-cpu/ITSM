@@ -12,5 +12,31 @@
   "scripts": {
     "start": "cds-serve"
   },
+  "cds": {
+    "requires": {
+      "auth": {
+        "[production]": { "kind": "xsuaa" },
+        "kind": "mocked",
+        "users": {
+          "jdoe": {
+            "password": "jdoe",
+            "roles": ["Agent"]
+          },
+          "mgarcia": {
+            "password": "mgarcia",
+            "roles": ["Agent"]
+          },
+          "asmith": {
+            "password": "asmith",
+            "roles": ["Agent", "ServiceGroup"]
+          },
+          "kwong": {
+            "password": "kwong",
+            "roles": ["Agent", "ServiceGroup", "Admin"]
+          }
+        }
+      }
+    }
+  },
   "private": true
 }

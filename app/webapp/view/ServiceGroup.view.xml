@@ -1,0 +1,549 @@
+<mvc:View
+  controllerName="itsm.ui.controller.ServiceGroup"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:viz="sap.viz.ui5.controls"
+  xmlns:vizData="sap.viz.ui5.data"
+  xmlns:vizFeed="sap.viz.ui5.controls.common.feeds"
+  displayBlock="true">
+
+  <!-- =========================================================
+       SERVICE GROUP DASHBOARD
+
+       One page, two modes. The header and the KPI row are shared
+       and never re-render when the mode changes, so the tiles stay
+       in exactly the same place and switching reads as changing
+       view inside one dashboard rather than navigating away.
+
+       The analytics mode is laid out as four fixed-height rows
+       that together fit a 1080px-tall viewport without scrolling —
+       see .sgAnalytics and the row heights in style.css. Every
+       card, pill, tile and button is an existing application class;
+       only the sizing is new.
+       ========================================================= -->
+  <Page id="sgPage" showHeader="false" backgroundDesign="Transparent" class="appBg densePage sgPage">
+
+    <Bar class="appHeader">
+      <contentLeft>
+        <Button icon="sap-icon://nav-back" type="Transparent"
+                tooltip="Back to Service Desk dashboard" press=".onGoDashboard"
+                class="sapUiTinyMarginEnd"/>
+        <Image src="images/ccentrik.png" height="30px" densityAware="false" class="appLogo" press=".onGoDashboard"/>
+      </contentLeft>
+      <contentMiddle>
+        <Title text="Service Group Dashboard" class="appHeaderTitle"/>
+      </contentMiddle>
+      <contentRight>
+        <Button icon="sap-icon://refresh" tooltip="Reload all incidents"
+                type="Transparent" class="headerActionBtn" press=".onRefresh"/>
+        <Button icon="sap-icon://action-settings" tooltip="Table settings: choose the columns to show"
+                type="Transparent" class="headerActionBtn"
+                visible="{sg>/isTicketMode}" press=".onManageColumns"/>
+        <Button id="modeButton"
+                text="{sg>/modeButtonText}"
+                icon="{sg>/modeButtonIcon}"
+                tooltip="{sg>/modeButtonTooltip}"
+                type="Transparent"
+                class="headerActionBtn modeSwitchBtn"
+                press=".onToggleMode"/>
+      </contentRight>
+    </Bar>
+
+    <!-- ===== Assignment dialog — drives single assign, reassign and bulk
+         assign alike; the header text says which. ===== -->
+    <Dialog id="assignDialog" title="Assign Incidents" contentWidth="26rem">
+      <VBox class="sapUiSmallMargin assignDialogBody">
+        <Text text="{asg>/summary}" class="assignSummary"/>
+        <Label text="Assigned Engineer" labelFor="assignEngineerSelect" class="sapUiTinyMarginTop"/>
+        <Select id="assignEngineerSelect" width="100%" items="{sg>/opt/engineersAssignable}">
+          <core:Item key="{sg>key}" text="{sg>text}"/>
+        </Select>
+        <Label text="Assignment Group" labelFor="assignTeamSelect" class="sapUiTinyMarginTop"/>
+        <Select id="assignTeamSelect" width="100%" items="{sg>/opt/teamsAssignable}">
+          <core:Item key="{sg>key}" text="{sg>text}"/>
+        </Select>
+        <Text text="Leave a field on “(keep unchanged)” to keep the incident's current value."
+              class="assignHint sapUiTinyMarginTop"/>
+      </VBox>
+      <beginButton>
+        <Button text="Assign" type="Emphasized" press=".onConfirmAssign" class="submitBtn"/>
+      </beginButton>
+      <endButton>
+        <Button text="Cancel" press=".onCancelAssign"/>
+      </endButton>
+    </Dialog>
+
+    <Dialog id="columnDialog" title="Table Settings" contentWidth="26rem" contentHeight="30rem">
+      <Text text="{= ${cp>/selectedCount} + ' of max ' + ${cp>/maxColumns} + ' columns selected'}"
+            class="sapUiSmallMargin tilePickerCount"/>
+      <List id="columnPickerList" mode="MultiSelect" items="{cp>/allColumns}" selectionChange=".onColumnPickerSelectionChange">
+        <StandardListItem title="{cp>label}" selected="{cp>selected}"/>
+      </List>
+      <beginButton>
+        <Button text="Save" type="Emphasized" enabled="{cp>/canSave}" press=".onSaveColumns"/>
+      </beginButton>
+      <endButton>
+        <Button text="Cancel" press=".onCancelColumns"/>
+      </endButton>
+    </Dialog>
+
+    <!-- ================= ROW 1 — KPI CARDS =================
+         Shared by both modes, same position in each. The four count
+         tiles double as filters; "Avg Assign Time" is a derived
+         duration, so it is shown but not pressable (kpiStatic). -->
+    <HBox id="tileRow" class="tileRow sgTileRow" wrap="Wrap" width="100%" items="{sg>/tiles}">
+      <VBox class="kpiTileWrap sgTileWrap">
+        <GenericTile
+          header="{sg>label}"
+          frameType="OneByHalf"
+          width="100%"
+          state="Loaded"
+          tooltip="{sg>tooltip}"
+          press=".onTilePress"
+          class="kpiTile">
+          <TileContent>
+            <NumericContent value="{sg>value}" valueColor="{sg>color}" icon="{sg>icon}" withMargin="false"/>
+          </TileContent>
+        </GenericTile>
+        <Text text="{sg>trendLabel}" class="trendBadge"/>
+      </VBox>
+    </HBox>
+
+    <!-- ===== Body: content and the slide-out filter panel sit side by
+         side in one flex row, so opening the panel shrinks the content
+         rather than covering it. ===== -->
+    <HBox class="sgBody" width="100%" alignItems="Stretch">
+
+      <VBox class="sgContent">
+
+        <!-- ================= ANALYTICS MODE ================= -->
+        <VBox visible="{= !${sg>/isTicketMode} }" class="sgModePane sgAnalytics">
+
+          <!-- ===== ROW 2 — three equal analytics cards ===== -->
+          <HBox class="anRow anRowCharts" width="100%">
+
+            <VBox class="anCard">
+              <Text text="TICKET STATUS DISTRIBUTION" class="sectionPill"/>
+              <viz:VizFrame id="statusChart" vizType="donut" width="100%" height="152px"
+                            uiConfig="{applicationSet:'fiori'}" selectData=".onStatusChartSelect">
+                <viz:dataset>
+                  <vizData:FlattenedDataset data="{sg>/charts/status}">
+                    <vizData:dimensions>
+                      <vizData:DimensionDefinition name="Status" value="{sg>name}"/>
+                    </vizData:dimensions>
+                    <vizData:measures>
+                      <vizData:MeasureDefinition name="Tickets" value="{sg>count}"/>
+                    </vizData:measures>
+                  </vizData:FlattenedDataset>
+                </viz:dataset>
+                <viz:feeds>
+                  <vizFeed:FeedItem uid="size" type="Measure" values="Tickets"/>
+                  <vizFeed:FeedItem uid="color" type="Dimension" values="Status"/>
+                </viz:feeds>
+              </viz:VizFrame>
+            </VBox>
+
+            <VBox class="anCard">
+              <Text text="TICKET TREND — LAST 30 DAYS" class="sectionPill"/>
+              <viz:VizFrame id="trendChart" vizType="line" width="100%" height="152px"
+                            uiConfig="{applicationSet:'fiori'}">
+                <viz:dataset>
+                  <vizData:FlattenedDataset data="{sg>/charts/trend}">
+                    <vizData:dimensions>
+                      <vizData:DimensionDefinition name="Day" value="{sg>date}"/>
+                    </vizData:dimensions>
+                    <vizData:measures>
+                      <vizData:MeasureDefinition name="Received" value="{sg>received}"/>
+                      <vizData:MeasureDefinition name="Assigned" value="{sg>assigned}"/>
+                      <vizData:MeasureDefinition name="Closed" value="{sg>closed}"/>
+                    </vizData:measures>
+                  </vizData:FlattenedDataset>
+                </viz:dataset>
+                <viz:feeds>
+                  <vizFeed:FeedItem uid="valueAxis" type="Measure" values="Received"/>
+                  <vizFeed:FeedItem uid="valueAxis" type="Measure" values="Assigned"/>
+                  <vizFeed:FeedItem uid="valueAxis" type="Measure" values="Closed"/>
+                  <vizFeed:FeedItem uid="categoryAxis" type="Dimension" values="Day"/>
+                </viz:feeds>
+              </viz:VizFrame>
+            </VBox>
+
+            <VBox class="anCard">
+              <Text text="SLA HEALTH" class="sectionPill"/>
+              <viz:VizFrame id="slaChart" vizType="donut" width="100%" height="152px"
+                            uiConfig="{applicationSet:'fiori'}" selectData=".onSlaChartSelect">
+                <viz:dataset>
+                  <vizData:FlattenedDataset data="{sg>/charts/sla}">
+                    <vizData:dimensions>
+                      <vizData:DimensionDefinition name="SLA" value="{sg>name}"/>
+                    </vizData:dimensions>
+                    <vizData:measures>
+                      <vizData:MeasureDefinition name="Tickets" value="{sg>count}"/>
+                    </vizData:measures>
+                  </vizData:FlattenedDataset>
+                </viz:dataset>
+                <viz:feeds>
+                  <vizFeed:FeedItem uid="size" type="Measure" values="Tickets"/>
+                  <vizFeed:FeedItem uid="color" type="Dimension" values="SLA"/>
+                </viz:feeds>
+              </viz:VizFrame>
+            </VBox>
+
+          </HBox>
+
+          <!-- ===== ROW 3 — three compact tables ===== -->
+          <HBox class="anRow anRowWidgets" width="100%">
+
+            <VBox class="anCard">
+              <HBox justifyContent="SpaceBetween" alignItems="Center" width="100%">
+                <Text text="WAITING FOR ASSIGNMENT" class="sectionPill"/>
+                <ObjectStatus text="{sg>/counts/waiting}" state="Error" class="anBadge"/>
+              </HBox>
+              <Table id="waitingTable" items="{sg>/widgets/waiting}" class="miniTable"
+                     inset="false" showSeparators="Inner" itemPress=".onWidgetItemPress"
+                     noDataText="Nothing waiting — everything is routed.">
+                <columns>
+                  <Column width="6.5rem"><Text text="Ticket ID"/></Column>
+                  <Column><Text text="Short Description"/></Column>
+                  <Column width="5.5rem"><Text text="Priority"/></Column>
+                  <Column width="6rem"><Text text="Waiting Since"/></Column>
+                </columns>
+                <items>
+                  <ColumnListItem type="Navigation">
+                    <cells>
+                      <Text text="{sg>ticketNumber}" class="miniStrong"/>
+                      <Text text="{sg>shortDescription}" maxLines="1"/>
+                      <ObjectStatus text="{sg>priorityName}" state="{sg>priorityState}"/>
+                      <Text text="{sg>waitingText}"/>
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </VBox>
+
+            <VBox class="anCard">
+              <Text text="ASSIGNMENT GROUP DISTRIBUTION" class="sectionPill"/>
+              <Table id="distributionTable" items="{sg>/widgets/distribution}" class="miniTable"
+                     inset="false" showSeparators="Inner" itemPress=".onGroupRowPress"
+                     noDataText="Nothing routed to a group yet.">
+                <columns>
+                  <Column><Text text="Assignment Group"/></Column>
+                  <Column width="5rem" hAlign="End"><Text text="Assigned"/></Column>
+                  <Column width="5rem" hAlign="End"><Text text="Pending"/></Column>
+                  <Column width="6rem" hAlign="End"><Text text="Avg Queue"/></Column>
+                </columns>
+                <items>
+                  <ColumnListItem type="Active">
+                    <cells>
+                      <Text text="{sg>name}" class="miniStrong" maxLines="1"/>
+                      <Text text="{sg>assigned}"/>
+                      <ObjectStatus text="{sg>pending}" state="{sg>pendingState}"/>
+                      <Text text="{sg>avgQueue}"/>
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </VBox>
+
+            <VBox class="anCard">
+              <Text text="ASSIGNMENT GROUP WORKLOAD" class="sectionPill"/>
+              <Table id="workloadTable" items="{sg>/widgets/workload}" class="miniTable"
+                     inset="false" showSeparators="Inner" itemPress=".onGroupRowPress"
+                     noDataText="No open incidents in any group.">
+                <columns>
+                  <Column><Text text="Group"/></Column>
+                  <Column width="4.5rem" hAlign="End"><Text text="Open"/></Column>
+                  <Column width="6rem" hAlign="End"><Text text="In Progress"/></Column>
+                  <Column width="6.5rem" hAlign="End"><Text text="Avg Resolution"/></Column>
+                </columns>
+                <items>
+                  <ColumnListItem type="Active">
+                    <cells>
+                      <Text text="{sg>name}" class="miniStrong" maxLines="1"/>
+                      <Text text="{sg>open}"/>
+                      <Text text="{sg>inProgress}"/>
+                      <Text text="{sg>avgResolution}"/>
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </VBox>
+
+          </HBox>
+
+          <!-- ===== ROW 4 — breaches, categories, quick actions ===== -->
+          <HBox class="anRow anRowWidgets" width="100%">
+
+            <VBox class="anCard">
+              <HBox justifyContent="SpaceBetween" alignItems="Center" width="100%">
+                <Text text="RECENT SLA BREACHES" class="sectionPill"/>
+                <ObjectStatus text="{sg>/counts/breaches}" state="Error" class="anBadge"/>
+              </HBox>
+              <Table id="breachTable" items="{sg>/widgets/breaches}" class="miniTable"
+                     inset="false" showSeparators="Inner" itemPress=".onWidgetItemPress"
+                     noDataText="No breaches in this selection.">
+                <columns>
+                  <Column width="6.5rem"><Text text="Ticket ID"/></Column>
+                  <Column><Text text="Short Description"/></Column>
+                  <Column width="5.5rem"><Text text="Priority"/></Column>
+                  <Column width="7rem"><Text text="Breach"/></Column>
+                </columns>
+                <items>
+                  <ColumnListItem type="Navigation">
+                    <cells>
+                      <Text text="{sg>ticketNumber}" class="miniStrong"/>
+                      <Text text="{sg>shortDescription}" maxLines="1"/>
+                      <ObjectStatus text="{sg>priorityName}" state="{sg>priorityState}"/>
+                      <ObjectStatus text="{sg>slaText}" state="Error"/>
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </VBox>
+
+            <VBox class="anCard">
+              <Text text="TOP TICKET CATEGORIES" class="sectionPill"/>
+              <viz:VizFrame id="categoryChart" vizType="bar" width="100%" height="152px"
+                            uiConfig="{applicationSet:'fiori'}" selectData=".onCategoryChartSelect">
+                <viz:dataset>
+                  <vizData:FlattenedDataset data="{sg>/charts/categories}">
+                    <vizData:dimensions>
+                      <vizData:DimensionDefinition name="Category" value="{sg>name}"/>
+                    </vizData:dimensions>
+                    <vizData:measures>
+                      <vizData:MeasureDefinition name="Tickets" value="{sg>count}"/>
+                    </vizData:measures>
+                  </vizData:FlattenedDataset>
+                </viz:dataset>
+                <viz:feeds>
+                  <vizFeed:FeedItem uid="valueAxis" type="Measure" values="Tickets"/>
+                  <vizFeed:FeedItem uid="categoryAxis" type="Dimension" values="Category"/>
+                </viz:feeds>
+              </viz:VizFrame>
+            </VBox>
+
+            <VBox class="anCard">
+              <Text text="QUICK ACTIONS" class="sectionPill"/>
+              <HBox class="quickGrid" wrap="Wrap" width="100%">
+                <VBox class="quickCell">
+                  <Button icon="sap-icon://employee" text="Assign" width="100%"
+                          tooltip="Open the ticket view to select and assign incidents"
+                          press=".onQuickAssign" class="quickBtn"/>
+                </VBox>
+                <VBox class="quickCell">
+                  <Button icon="sap-icon://multi-select" text="Bulk Assign" width="100%"
+                          tooltip="Unassigned incidents, ready for a multi-select assign"
+                          press=".onQuickBulkAssign" class="quickBtn"/>
+                </VBox>
+                <VBox class="quickCell">
+                  <Button icon="sap-icon://request" text="Reassign" width="100%"
+                          tooltip="Incidents routed to a group but not yet picked up"
+                          press=".onQuickReassign" class="quickBtn"/>
+                </VBox>
+                <VBox class="quickCell">
+                  <Button icon="sap-icon://inbox" text="View Queue" width="100%"
+                          tooltip="The Service Group assignment queue"
+                          press=".onQuickViewQueue" class="quickBtn"/>
+                </VBox>
+                <VBox class="quickCell">
+                  <!-- Disabled on purpose: this application has no
+                       assignment-rule engine, so a working-looking button
+                       here would be a dead end. -->
+                  <Button icon="sap-icon://process" text="Rules" width="100%"
+                          enabled="false"
+                          tooltip="Assignment rules are not configured in this application yet"
+                          class="quickBtn"/>
+                </VBox>
+                <VBox class="quickCell">
+                  <Button icon="sap-icon://line-chart" text="SLA Board" width="100%"
+                          tooltip="Open the SLA analytics page"
+                          press=".onQuickSlaDashboard" class="quickBtn"/>
+                </VBox>
+              </HBox>
+            </VBox>
+
+          </HBox>
+        </VBox>
+
+        <!-- ================= TICKET DASHBOARD MODE =================
+             Every incident in the system, from every reporter, bound to
+             the same filtered set the analytics read. -->
+        <VBox visible="{sg>/isTicketMode}" class="sgModePane">
+          <VBox class="tablePane ticketPane">
+            <Table
+              id="incidentTable"
+              inset="false"
+              mode="MultiSelect"
+              growing="true"
+              growingThreshold="25"
+              sticky="ColumnHeaders,HeaderToolbar"
+              selectionChange=".onSelectionChange"
+              items="{sg>/rows}"
+              noDataText="No incidents match the current filters.">
+
+              <headerToolbar>
+                <OverflowToolbar style="Clear">
+                  <Title text="{sg>/tableTitle}" level="H5"/>
+                  <ObjectStatus text="{sg>/selectionText}" state="Information" class="selectionBadge"/>
+                  <ToolbarSpacer/>
+                  <Button text="Assign" icon="sap-icon://employee" class="submitBtn"
+                          enabled="{sg>/hasSelection}" press=".onAssignSelected"
+                          tooltip="Assign the selected incidents"/>
+                  <Button text="Reassign" icon="sap-icon://request"
+                          enabled="{sg>/hasAssignedSelection}" press=".onReassignSelected"
+                          tooltip="Move already-assigned incidents to a different engineer"/>
+                  <Button text="Change Group" icon="sap-icon://group"
+                          enabled="{sg>/hasSelection}" press=".onChangeGroupSelected"
+                          tooltip="Move the selected incidents to a different assignment group"/>
+                  <Button text="Open" icon="sap-icon://detail-view"
+                          enabled="{sg>/hasSingleSelection}" press=".onOpenSelected"
+                          tooltip="Open the selected incident"/>
+                  <Button icon="sap-icon://sort" tooltip="Sort" press=".onOpenSort"/>
+                </OverflowToolbar>
+              </headerToolbar>
+
+              <columns>
+                <Column width="8rem" visible="{cols>/INCIDENT_NUMBER}"><Text text="Incident #"/></Column>
+                <Column width="18rem" visible="{cols>/SHORT_DESCRIPTION}"><Text text="Short Description"/></Column>
+                <Column width="9rem" visible="{cols>/REPORTER}" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Reporter"/></Column>
+                <Column width="9rem" visible="{cols>/CATEGORY}" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Category"/></Column>
+                <Column width="7rem" visible="{cols>/PRIORITY}"><Text text="Priority"/></Column>
+                <Column width="9rem" visible="{cols>/STATUS}"><Text text="Status"/></Column>
+                <Column width="8rem" visible="{cols>/IMPACT}" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Impact"/></Column>
+                <Column width="8rem" visible="{cols>/URGENCY}" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Urgency"/></Column>
+                <Column width="10rem" visible="{cols>/GROUP}" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Assignment Group"/></Column>
+                <Column width="10rem" visible="{cols>/ENGINEER}"><Text text="Assigned Engineer"/></Column>
+                <Column width="10rem" visible="{cols>/CREATED_ON}" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Created On"/></Column>
+                <Column width="10rem" visible="{cols>/DUE_DATE}" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Due Date"/></Column>
+                <Column width="9rem" visible="{cols>/SLA}"><Text text="SLA Status"/></Column>
+              </columns>
+
+              <items>
+                <ColumnListItem type="Navigation" press=".onTicketPress">
+                  <cells>
+                    <ObjectIdentifier title="{sg>ticketNumber}"/>
+                    <Text text="{sg>shortDescription}"/>
+                    <Text text="{sg>reporterName}"/>
+                    <Text text="{sg>categoryName}"/>
+                    <ObjectStatus text="{sg>priorityName}" state="{sg>priorityState}"/>
+                    <ObjectStatus text="{sg>statusName}" state="{sg>statusState}"/>
+                    <Text text="{sg>impactName}"/>
+                    <Text text="{sg>urgencyName}"/>
+                    <Text text="{sg>teamName}"/>
+                    <ObjectStatus text="{sg>engineerName}" state="{sg>engineerState}"/>
+                    <Text text="{sg>createdText}"/>
+                    <Text text="{sg>dueText}"/>
+                    <ObjectStatus text="{sg>slaText}" state="{sg>slaState}"/>
+                  </cells>
+                </ColumnListItem>
+              </items>
+            </Table>
+          </VBox>
+        </VBox>
+
+      </VBox>
+
+      <!-- ===== Slide-out filter panel — a sibling of the content, not an
+           overlay, so opening it shrinks the dashboard beside it. ===== -->
+      <VBox id="filterPane" class="filterPane">
+        <VBox class="filterPaneInner">
+          <HBox justifyContent="SpaceBetween" alignItems="Center" width="100%">
+            <Text text="FILTERS" class="sectionPill"/>
+            <Button icon="sap-icon://decline" type="Transparent" tooltip="Close"
+                    press=".onCancelFilters" class="chartToggleBtn"/>
+          </HBox>
+
+          <ScrollContainer vertical="true" horizontal="false" class="filterScroll">
+            <VBox class="filterStack">
+              <VBox class="filterField">
+                <Label text="Assignment Group" labelFor="fGroup"/>
+                <Select id="fGroup" width="100%" items="{sg>/opt/teams}">
+                  <core:Item key="{sg>key}" text="{sg>text}"/>
+                </Select>
+              </VBox>
+              <VBox class="filterField">
+                <Label text="Assigned Engineer" labelFor="fEngineer"/>
+                <Select id="fEngineer" width="100%" items="{sg>/opt/engineers}">
+                  <core:Item key="{sg>key}" text="{sg>text}"/>
+                </Select>
+              </VBox>
+              <VBox class="filterField">
+                <Label text="Category" labelFor="fCategory"/>
+                <Select id="fCategory" width="100%" items="{sg>/opt/categories}">
+                  <core:Item key="{sg>key}" text="{sg>text}"/>
+                </Select>
+              </VBox>
+              <VBox class="filterField">
+                <Label text="Priority" labelFor="fPriority"/>
+                <Select id="fPriority" width="100%" items="{sg>/opt/priorities}">
+                  <core:Item key="{sg>key}" text="{sg>text}"/>
+                </Select>
+              </VBox>
+              <VBox class="filterField">
+                <Label text="Status" labelFor="fStatus"/>
+                <Select id="fStatus" width="100%" items="{sg>/opt/statuses}">
+                  <core:Item key="{sg>key}" text="{sg>text}"/>
+                </Select>
+              </VBox>
+              <VBox class="filterField">
+                <Label text="Impact" labelFor="fImpact"/>
+                <Select id="fImpact" width="100%" items="{sg>/opt/impacts}">
+                  <core:Item key="{sg>key}" text="{sg>text}"/>
+                </Select>
+              </VBox>
+              <VBox class="filterField">
+                <Label text="Urgency" labelFor="fUrgency"/>
+                <Select id="fUrgency" width="100%" items="{sg>/opt/urgencies}">
+                  <core:Item key="{sg>key}" text="{sg>text}"/>
+                </Select>
+              </VBox>
+              <VBox class="filterField">
+                <Label text="SLA Status" labelFor="fSla"/>
+                <Select id="fSla" width="100%" items="{sg>/opt/slaStates}">
+                  <core:Item key="{sg>key}" text="{sg>text}"/>
+                </Select>
+              </VBox>
+              <VBox class="filterField">
+                <Label text="Age" labelFor="fAge"/>
+                <Select id="fAge" width="100%" items="{sg>/opt/ageBuckets}">
+                  <core:Item key="{sg>key}" text="{sg>text}"/>
+                </Select>
+              </VBox>
+              <VBox class="filterField">
+                <Label text="Created Between" labelFor="fCreated"/>
+                <DateRangeSelection id="fCreated" width="100%" placeholder="Any date"/>
+              </VBox>
+              <VBox class="filterField">
+                <Label text="Incident # / Description" labelFor="fSearch"/>
+                <SearchField id="fSearch" width="100%" placeholder="Search incidents" search=".onApplyFilters"/>
+              </VBox>
+              <VBox class="filterField">
+                <Label text="Reporter" labelFor="fReporter"/>
+                <SearchField id="fReporter" width="100%" placeholder="Search reporter" search=".onApplyFilters"/>
+              </VBox>
+            </VBox>
+          </ScrollContainer>
+
+          <VBox class="filterActions">
+            <Button text="Apply Filters" type="Emphasized" width="100%"
+                    class="submitBtn" press=".onApplyFilters"/>
+            <HBox class="filterActionRow" width="100%">
+              <Button text="Reset" icon="sap-icon://clear-filter" width="50%" press=".onResetFilters"/>
+              <Button text="Cancel" width="50%" press=".onCancelFilters"/>
+            </HBox>
+          </VBox>
+        </VBox>
+      </VBox>
+
+    </HBox>
+
+    <Button id="filterFab"
+            text="{sg>/filterButtonText}"
+            icon="sap-icon://filter"
+            tooltip="Open filters"
+            press=".onOpenFilters"
+            class="submitBtn filterFab"/>
+
+  </Page>
+</mvc:View>

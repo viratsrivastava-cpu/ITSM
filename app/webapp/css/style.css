@@ -377,6 +377,319 @@ html, body { height: 100%; margin: 0; background: #eef2ff; }
   color: #1e2a5e;
 }
  
+/* ===== Login =====
+   Same page background, card, pill and button language as the rest of
+   the app — just centred in the viewport instead of a dense grid. */
+.loginBg .sapMPageScroll { padding: 0; }
+.loginWrap {
+  min-height: 100vh;
+  gap: 14px;
+  padding: 24px 16px;
+  box-sizing: border-box;
+}
+.loginCard {
+  width: 100%;
+  max-width: 24rem;
+  margin: 0 !important;
+  box-sizing: border-box;
+}
+.loginBrand { gap: 2px; margin-bottom: 16px; }
+.loginTitle {
+  color: #021a86 !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  margin-top: 10px;
+}
+.loginSubtitle { color: #6b7280; font-size: 12px; }
+.loginCard .sapMLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 2px;
+}
+.loginInput { width: 100%; }
+
+/* Local test users — a development affordance, so it reads as secondary
+   to the sign-in card above it. */
+.demoCard { background: #f8faff; border: 1px solid #eaeefb; }
+.demoList .sapMLIB { padding: 0 !important; background: transparent !important; }
+.demoRow {
+  gap: 10px;
+  padding: 7px 2px;
+  border-bottom: 1px solid #eef2ff;
+  cursor: pointer;
+}
+.demoMain { flex: 1 1 auto; min-width: 0; }
+.demoName { font-size: 13px; font-weight: 700; color: #1e2a5e; }
+.demoUserId { font-size: 11px; color: #9ca3af; }
+
+/* ---- shared bits used by all three dashboards ---- */
+/* "vs last week" badge under each KPI tile (see _formatTrend in the
+   controllers) — plain Unicode arrows, colored by direction. */
+.trendBadge {
+  font-size: 11px;
+  color: #6b7280;
+  margin: 3px 0 0 4px;
+  min-height: 14px;
+}
+.trendBadge.trendUp { color: #dc2626; }
+.trendBadge.trendDown { color: #16a34a; }
+
+/* "n of m selected" line at the top of the tile/column picker dialogs */
+.tilePickerCount { display: block; font-size: 12px; color: #6b7280; }
+
+/* ===== Service Group dashboard =====
+   Layout classes only — every card, pill, tile, badge and button on that
+   page reuses the classes above rather than restyling anything. */
+
+/* Eight KPI tiles wrap onto a second line on narrower screens instead of
+   being squeezed flat, so each keeps a readable minimum width. */
+.sgTileWrap { flex: 1 1 170px; min-width: 0; }
+
+/* ---- body: content + slide-out filter panel share one flex row, so
+   opening the panel shrinks the content instead of covering it ---- */
+.sgBody {
+  gap: 0;
+  align-items: stretch;
+  margin: 0 16px;
+}
+.sgContent { flex: 1 1 auto; min-width: 0; }
+.sgModePane { width: 100%; }
+
+/* Same flex-basis transition as .chartPane/.chartCollapsed elsewhere in
+   the app — the panel is a sibling that grows from zero width, not an
+   overlay, which is what lets the dashboard resize rather than be hidden. */
+.filterPane {
+  flex: 0 0 0;
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  align-self: flex-start;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  transition: flex-basis .28s ease, opacity .28s ease, margin-left .28s ease;
+}
+.filterPane.filterOpen {
+  flex: 0 0 20rem;
+  width: 20rem;
+  opacity: 1;
+  margin-left: 12px;
+}
+.filterPaneInner {
+  width: 20rem;          /* fixed, so the content does not reflow while sliding */
+  box-sizing: border-box;
+  padding: 12px 14px;
+  max-height: calc(100vh - 220px);
+}
+.filterScroll { flex: 1 1 auto; min-height: 0; }
+.filterStack { gap: 10px; padding-right: 4px; }
+.filterActions {
+  gap: 8px;
+  padding-top: 12px;
+  margin-top: 10px;
+  border-top: 1px solid #f1f4ff;
+}
+.filterActionRow { gap: 8px; }
+
+/* On a phone the pane cannot take a fifth of the screen — it goes
+   full-width above the content instead, still pushing rather than covering. */
+@media (max-width: 599px) {
+  .sgBody { flex-wrap: wrap; }
+  .filterPane.filterOpen { flex: 1 1 100%; width: 100%; margin-left: 0; margin-bottom: 12px; }
+  .filterPaneInner { width: 100%; max-height: none; }
+}
+
+/* ---- the fixed Filters button that opens the panel ---- */
+.filterFab {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 5;
+}
+.filterFab .sapMBtnInner {
+  border-radius: 999px !important;
+  min-height: 2.5rem !important;
+  padding: 0 18px !important;
+  box-shadow: 0 4px 14px rgba(2,26,134,.28) !important;
+}
+
+/* ---- filter fields (shared by the panel) ---- */
+.filterField { min-width: 0; }
+.filterField .sapMLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 2px;
+}
+.filterSummary {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+
+/* ===== Service Group analytics: four rows, no page scroll =====
+   Sized so header + KPI row + three content rows fit inside a
+   1080px-tall viewport. Card look (white, 14px radius, the same
+   subtle shadow), pills, tiles and buttons are all the existing
+   application classes — only the dimensions here are new. */
+.sgPage > .sapMPageScroll { overflow-y: hidden; }
+
+.sgAnalytics { gap: 10px; }
+.anRow {
+  gap: 10px;
+  align-items: stretch;
+  width: 100%;
+}
+.anRowCharts { height: 200px; }
+.anRowWidgets { height: 224px; }
+
+.anCard {
+  flex: 1 1 0;
+  min-width: 0;
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  overflow: hidden;
+}
+.anCard .sectionPill { margin-bottom: 6px; }
+.anBadge { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+
+/* ---- compact tables inside the row 3 / row 4 cards ---- */
+.miniTable .sapMListTblHeaderCell,
+.miniTable .sapMListTblHeaderCell .sapMText {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+.miniTable .sapMListTblRow .sapMListTblCell { padding-top: 0; padding-bottom: 0; }
+.miniTable .sapMListTblCell,
+.miniTable .sapMListTblCell .sapMText,
+.miniTable .sapMListTblCell .sapMObjStatusText { font-size: 12px; }
+.miniTable .sapMListTblRow { height: 30px; }
+.miniTable .sapMLIBContent { padding: 0; }
+.miniTable .sapMListNoData { min-height: 60px; font-size: 12px; }
+.miniStrong { font-weight: 700; color: #1e2a5e; }
+
+/* ---- quick actions: icon-led buttons, two rows of three ---- */
+.quickGrid { gap: 8px; }
+.quickCell { flex: 1 1 30%; min-width: 0; }
+.quickBtn .sapMBtnInner {
+  border-radius: 10px !important;
+  min-height: 2.6rem !important;
+  background: #f8faff !important;
+  border-color: #eaeefb !important;
+  transition: background .15s ease;
+}
+.quickBtn .sapMBtnContent,
+.quickBtn bdi { font-size: 11px !important; font-weight: 600 !important; color: #1e2a5e !important; }
+.quickBtn .sapUiIcon { color: #021a86 !important; }
+.quickBtn:hover .sapMBtnInner { background: #eef2ff !important; border-color: #dbe4ff !important; }
+.quickBtn.sapMBtnDisabled .sapUiIcon,
+.quickBtn.sapMBtnDisabled bdi { color: #9ca3af !important; }
+
+/* ---- KPI row: six compact tiles on one line ---- */
+.sgTileRow { margin-top: 10px !important; margin-bottom: 0 !important; gap: 10px; }
+.sgTileWrap { flex: 1 1 170px; min-width: 0; }
+.sgTileRow .kpiTile .sapMGT { height: 4.2rem !important; }
+.sgTileRow .trendBadge { font-size: 10px; margin-top: 2px; min-height: 12px; }
+/* Derived figures (Avg Assign Time) are shown, not pressable — so they
+   must not offer the hover affordance the filter tiles do. */
+.kpiTile.kpiStatic { cursor: default; }
+.kpiTile.kpiStatic:hover { transform: none; box-shadow: none; }
+
+/* Shorter viewports (laptops at 900px and below) trim the charts and
+   tables rather than introducing a scrollbar. */
+@media (max-height: 900px) {
+  .anRowCharts { height: 172px; }
+  .anRowWidgets { height: 196px; }
+  .sgTileRow .kpiTile .sapMGT { height: 3.8rem !important; }
+  .miniTable .sapMListTblRow { height: 26px; }
+}
+
+.ticketPane { flex: 1 1 100%; max-height: none; }
+
+/* The mode switch is the main navigation on this page, so it reads as a
+   filled action rather than another ghost header button. */
+.modeSwitchBtn .sapMBtnInner {
+  background: #fff !important;
+  border-color: #fff !important;
+  font-weight: 700 !important;
+}
+.modeSwitchBtn:hover .sapMBtnInner { background: #dbe4ff !important; border-color: #dbe4ff !important; }
+
+/* ---- charts: same white card + section pill as everywhere else, laid
+   out as a wrapping grid so 2/3 per row on desktop collapses to 1 on a
+   phone without any breakpoint of its own ---- */
+.chartGrid { gap: 12px; }
+.chartCard {
+  flex: 1 1 300px;
+  min-width: 260px;
+  background: #f8faff;
+  border: 1px solid #eaeefb;
+  border-radius: 12px;
+  padding: 10px 12px 4px;
+  box-sizing: border-box;
+}
+.chartCardWide { flex: 1 1 100%; }
+.chartCard .sectionPill { margin-bottom: 6px; }
+
+/* The Service Group page stacks tiles and charts above/below this row, so
+   it sizes to its content rather than to the viewport the way the Service
+   Desk dashboard's single split row does. */
+.sgSplitRow { height: auto; margin-left: 0 !important; margin-right: 0 !important; }
+.sgSplitRow .tablePane { max-height: 34rem; }
+.sgSplitRow .chartPane { max-height: 34rem; height: auto; }
+
+/* .sectionCard's global 16px side margins are already provided by .sgBody
+   on this page — doubling them would misalign these cards against the KPI
+   tile row above. */
+.sgContent .sectionCard { margin-left: 0 !important; margin-right: 0 !important; }
+
+/* ---- table toolbar: how many rows the assignment actions will hit ---- */
+.selectionBadge { margin-left: 10px; font-size: 12px; }
+
+/* ---- work-queue pane ---- */
+.widgetTabs .sapMITBContent { padding: 4px 0 0; }
+.widgetCaption {
+  display: block;
+  font-size: 11px;
+  color: #6b7280;
+  margin: 2px 0 6px;
+}
+.widgetHeadRow { gap: 8px; margin-bottom: 4px; }
+.todayRow { gap: 18px; margin: 2px 0 2px 4px; }
+.slaStatValue.todayRaised { color: #1d4ed8; }
+.slaStatValue.todayAssigned { color: #eda100; }
+.todayRow .slaStatValue { font-size: 22px; }
+
+.queueList .sapMLIB { padding: 0 !important; }
+.queueRow {
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f1f4ff;
+}
+.queueMain { flex: 1 1 auto; min-width: 0; }
+.queueNumber { font-size: 12px; font-weight: 700; color: #1e2a5e; }
+.queueDesc { font-size: 12px; color: #374151; }
+.queueMeta { font-size: 11px; color: #9ca3af; white-space: nowrap; }
+.workloadMeta { gap: 8px; }
+
+/* ---- assignment dialog ---- */
+.assignDialogBody { gap: 2px; }
+.assignSummary { font-size: 13px; color: #1e2a5e; font-weight: 600; }
+.assignHint { font-size: 11px; color: #9ca3af; }
+
+/* An eighth KPI accent, for the Service Group row's "Resolved Today" tile
+   (the other pages top out at seven). Same navy/green family. */
+.kpiTile.acc8 { border-left-color: #0f766e; }
+.kpiTile.acc8 .sapUiIcon { color: #0f766e !important; }
+.kpiTile.acc8:hover { box-shadow: 0 6px 16px rgba(15,118,110,.22); }
+
 /* ---- other pages: header card was eating too much vertical space for a
    one-line title; shrink it to match the dashboard's dense feel ---- */
 .headerCard {

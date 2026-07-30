@@ -4,8 +4,9 @@ sap.ui.define([
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
   "sap/ui/model/Sorter",
-  "sap/m/MessageToast"
-], function (Controller, JSONModel, Filter, FilterOperator, Sorter, MessageToast) {
+  "sap/m/MessageToast",
+  "itsm/ui/util/UserMenu"
+], function (Controller, JSONModel, Filter, FilterOperator, Sorter, MessageToast, UserMenu) {
   "use strict";
  
   // The full pool of KPI tiles a user can choose from — always exactly 7
@@ -701,6 +702,14 @@ sap.ui.define([
  
     onGoAnalytics: function () {
       this.getOwnerComponent().getRouter().navTo("analytics");
+    },
+
+    onGoServiceGroup: function () {
+      this.getOwnerComponent().getRouter().navTo("serviceGroup");
+    },
+
+    onProfilePress: function (oEvent) {
+      UserMenu.open(oEvent.getSource(), this.getOwnerComponent());
     },
  
     /* ---------------------------------------------------------
