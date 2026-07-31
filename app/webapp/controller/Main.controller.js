@@ -81,7 +81,17 @@ sap.ui.define([
           ticketLabel: "New Ticket",
           subtitle: "Creating New Service Request Record",
           formEditable: true,
-          showBack: true, showEdit: false, showSave: true, showSubmit: true
+          // Two-phase create: Save first (which assigns the number and puts
+          // the ticket in DRAFT), and only then can it be submitted.
+          showBack: true, showEdit: false, showSave: true, showSubmit: false
+        },
+        // Saved and activated, but still DRAFT — the only state in which
+        // submitTicket is allowed (the server rejects it in any other).
+        draftSaved: {
+          ticketLabel: sNumber || "Ticket",
+          subtitle: "Saved as draft — not yet submitted",
+          formEditable: false,
+          showBack: true, showEdit: true, showSave: false, showSubmit: true
         },
         view: {
           ticketLabel: sNumber || "Ticket",
@@ -137,7 +147,11 @@ sap.ui.define([
       this._resetPendingAttachments();
       this.getView().getModel("ui").setProperty("/ticketNumberPreview", null);
       this._bindExistingTicket(sId);
+      // Start read-only, then reveal Submit if this ticket is still a saved
+      // DRAFT — reopening one from the dashboard must offer the same next
+      // step as having just saved it.
       this._setMode("view");
+      if (this._oTicketContext) { this._setModeFromStatus(this._oTicketContext); }
       this._setupCategories();
       this._loadHistory(sId);
       this._scrollToTop();
@@ -532,17 +546,31 @@ sap.ui.define([
       this._queuePendingAttachments();
 
       oModel.submitBatch("itsmGroup").then(function () {
-        var oActivate = oModel.bindContext("ITSMService.draftActivate(...)", that._oTicketContext);
-        return oActivate.execute().then(function () {
-          var oActiveCtx = oActivate.getBoundContext();
+        // A context from ListBinding.create() stays "transient" until the
+        // server has acknowledged the POST, and v4 refuses to invoke an
+        // action on one ("Invoke for transient context not allowed").
+        // created() is the promise that resolves once it is persisted.
+        return that._oTicketContext.created
+          ? that._oTicketContext.created()
+          : Promise.resolve();
+      }).then(function () {
+        // saveTicket rather than the plain draftActivate: it is the action
+        // that assigns the ticketNumber for the chosen type and puts the
+        // ticket into DRAFT status before activating it.
+        var oSave = oModel.bindContext("ITSMService.saveTicket(...)", that._oTicketContext);
+        return oSave.execute("$auto").then(function () {
+          var oActiveCtx = oSave.getBoundContext();
           that._oTicketContext = oActiveCtx;
           that.getView().setBindingContext(oActiveCtx);
 
           var sNumber = oActiveCtx.getProperty("ticketNumber");
           that._resetPendingAttachments();
-          MessageToast.show("Ticket " + sNumber + (bEditing ? " updated successfully." : " created successfully."));
-          // Back to the dashboard, which refreshes and shows the change.
-          that.getOwnerComponent().getRouter().navTo("dashboard");
+          MessageToast.show("Ticket " + sNumber + (bEditing ? " updated." : " saved as draft."));
+
+          // Deliberately stays on the page instead of returning to the
+          // dashboard: the number has just appeared in the form, and Submit
+          // is the next step of the two-phase flow.
+          that._setModeFromStatus(oActiveCtx);
         });
       }).catch(function (err) {
         MessageBox.error("Save failed: " + (err.message || err));
@@ -550,9 +578,52 @@ sap.ui.define([
     },
 
     /* ---------------------------------------------------------
+     * After a save (or when opening an existing ticket) decide
+     * whether Submit applies: it does only while the ticket is
+     * still in DRAFT status, which is also what the server
+     * enforces in submitTicket.
+     * ------------------------------------------------------- */
+    _setModeFromStatus: function (oCtx) {
+      var that = this;
+      // requestProperty, not getProperty: on a freshly bound detail context
+      // the data has not arrived yet, so getProperty returns undefined and
+      // every DRAFT ticket would silently fall through to read-only "view"
+      // with no Submit button.
+      Promise.all([
+        this._requestDraftStatusId(),
+        oCtx.requestProperty("status_ID")
+      ]).then(function (aResult) {
+        var sDraftId = aResult[0];
+        that._setMode(sDraftId && aResult[1] === sDraftId ? "draftSaved" : "view");
+      }).catch(function () {
+        /* leave whatever mode was already set */
+      });
+    },
+
+    // The STATUS/DRAFT lookup id, fetched once and remembered.
+    _requestDraftStatusId: function () {
+      if (this._pDraftStatusId) { return this._pDraftStatusId; }
+
+      var oModel = this.getOwnerComponent().getModel();
+      var oBinding = oModel.bindList("/LookupValues", null, [], [
+        new Filter("lookupType", FilterOperator.EQ, "STATUS"),
+        new Filter("code", FilterOperator.EQ, "DRAFT")
+      ], { $select: "ID" });
+
+      this._pDraftStatusId = oBinding.requestContexts(0, 1).then(function (aCtx) {
+        return aCtx.length ? aCtx[0].getProperty("ID") : null;
+      }).catch(function () {
+        return null;
+      });
+
+      return this._pDraftStatusId;
+    },
+
+    /* ---------------------------------------------------------
      * SUBMIT — same as save but also validates required fields
      * ------------------------------------------------------- */
     onSubmit: function () {
+      var that = this;
       var oData = this._oTicketContext.getObject();
 
       var aMissing = [];
@@ -567,7 +638,18 @@ sap.ui.define([
         return;
       }
 
-      this.onSave();
+      // Phase 2. Only reachable once Save has activated the ticket, so the
+      // context here is always the active one submitTicket expects.
+      var oModel = this.getView().getModel();
+      var oSubmit = oModel.bindContext("ITSMService.submitTicket(...)", this._oTicketContext);
+
+      oSubmit.execute("$auto").then(function () {
+        var oCtx = oSubmit.getBoundContext();
+        MessageToast.show("Ticket " + oCtx.getProperty("ticketNumber") + " submitted.");
+        that.getOwnerComponent().getRouter().navTo("dashboard");
+      }).catch(function (err) {
+        MessageBox.error("Submit failed: " + (err.message || err));
+      });
     },
 
     /* ---------------------------------------------------------

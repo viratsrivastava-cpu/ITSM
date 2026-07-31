@@ -9,6 +9,8 @@ a3000000-0000-4000-8000-000000000001,PRIORITY,P1,P1 - Very High,Immediate respon
 a3000000-0000-4000-8000-000000000002,PRIORITY,P2,P2 - High,Response within 4 hours,,20,false,true
 a3000000-0000-4000-8000-000000000003,PRIORITY,P3,P3 - Medium,Response within 1 business day,,30,true,true
 a3000000-0000-4000-8000-000000000004,PRIORITY,P4,P4 - Low,Response within 5 business days,,40,false,true
+a4000000-0000-4000-8000-000000000007,STATUS,DRAFT,Draft,Saved by the reporter but not yet submitted,,5,false,true
+a4000000-0000-4000-8000-000000000008,STATUS,SUBMITTED,Submitted,Submitted to the service desk,,15,false,true
 a4000000-0000-4000-8000-000000000001,STATUS,NEW,New,Ticket has been created,,10,true,true
 a4000000-0000-4000-8000-000000000002,STATUS,IN_PROCESS,In Process,Being worked on by support,,20,false,true
 a4000000-0000-4000-8000-000000000003,STATUS,CUSTOMER_ACTION,Customer Action,Waiting on the reporter,,30,false,true

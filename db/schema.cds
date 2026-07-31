@@ -30,6 +30,11 @@ context master {
         isActive     : Boolean default true;
     }
 
+    entity TicketCounter : managed {
+    key prefix     : String(10);
+        lastNumber : Integer default 00001;
+    }   
+
     /*---------------------------------------------------------
         USERS
     ---------------------------------------------------------*/

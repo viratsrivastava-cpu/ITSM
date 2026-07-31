@@ -25,6 +25,12 @@ service ITSMService {
     entity SoftwareComponents  as projection on master.SoftwareComponent;
     entity ConfigurationItems  as projection on master.ConfigurationItem;
 
+    // Per-prefix ticket number counters. Read-only over the API: the only
+    // thing allowed to move a counter is the atomic bump in ticket-actions.js,
+    // otherwise two clients could hand out the same ticket number.
+    @readonly
+    entity TicketCounters as projection on master.TicketCounter;
+
     /*=====================================================
         TICKET — draft-enabled aggregate root.
         `history` is excluded here (see TicketHistory below):
@@ -33,7 +39,24 @@ service ITSMService {
         be able to add/remove rows to while editing a draft.
     =====================================================*/
     @odata.draft.enabled
-    entity Tickets as projection on txn.Ticket excluding { history };
+    entity Tickets as projection on txn.Ticket excluding { history } actions {
+
+        /*-------------------------------------------------
+            SAVE — phase 1 of the two-phase create.
+            Called on the DRAFT instance (IsActiveEntity=false).
+            Assigns the ticketNumber for the chosen ticketType,
+            sets status to DRAFT and activates the CAP draft into
+            a real row. Returns the activated ticket.
+        -------------------------------------------------*/
+        action saveTicket()   returns Tickets;
+
+        /*-------------------------------------------------
+            SUBMIT — phase 2. Called on the ACTIVE instance,
+            and only while its status is still DRAFT. Moves it
+            to SUBMITTED and records the change in TicketHistory.
+        -------------------------------------------------*/
+        action submitTicket() returns Tickets;
+    };
 
     entity Attachments          as projection on txn.Attachment;
     entity TicketSAPNotes       as projection on txn.TicketSAPNote;
@@ -50,7 +73,7 @@ service ITSMService {
     // Read-only preview of the next ticket number, for display on the
     // create form before the ticket is actually saved. The authoritative
     // number is (re)assigned server-side on SAVE.
-    function nextTicketNumber() returns String;
+    function nextTicketNumber(ticketTypeCode : String) returns String;
 
     /*=====================================================
         WHO AM I — the authenticated user, joined to their
