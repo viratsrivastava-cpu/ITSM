@@ -1,19 +1,20 @@
 const cds = require('@sap/cds');
 
-const registerNumbering = require('./handlers/numbering');
+const registerTickets = require('./handlers/tickets');
 const registerCategories = require('./handlers/categories');
 const registerAudit = require('./handlers/audit');
 const registerAssignment = require('./handlers/assignment');
-const registerTicketActions = require('./handlers/ticket-actions');
-const registerVisibility = require('./handlers/visibility');
 const { registerDefaults } = require('./handlers/defaults');
 
 module.exports = cds.service.impl(async function () {
-    registerNumbering(this);
-    registerCategories(this);
-    registerAudit(this);
-    registerAssignment(this);
-    registerTicketActions(this);
-    registerVisibility(this);
-    registerDefaults(this);
+
+    // Ticket lifecycle: visibility, validation, numbering and the
+    // DRAFT/SUBMITTED flow — all on CAP's own CRUD events.
+    registerTickets.call(this);
+
+    // Cross-cutting concerns, each owning its own events.
+    registerCategories(this);   // category tree helpers
+    registerAudit(this);        // generic TicketHistory diff on SAVE
+    registerAssignment(this);   // bulk (re)assignment + currentUser
+    registerDefaults(this);     // comment author default
 });

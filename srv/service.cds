@@ -26,37 +26,33 @@ service ITSMService {
     entity ConfigurationItems  as projection on master.ConfigurationItem;
 
     // Per-prefix ticket number counters. Read-only over the API: the only
-    // thing allowed to move a counter is the atomic bump in ticket-actions.js,
+    // thing allowed to move a counter is the atomic bump in handlers/tickets.js,
     // otherwise two clients could hand out the same ticket number.
     @readonly
     entity TicketCounters as projection on master.TicketCounter;
 
     /*=====================================================
-        TICKET — draft-enabled aggregate root.
-        `history` is excluded here (see TicketHistory below):
-        it's an append-only audit trail written by this
-        service's own handlers, not something a user should
-        be able to add/remove rows to while editing a draft.
+        TICKET — the aggregate root, keyed on ticketID.
+
+        Since the entity split, the generic header lives here and
+        the incident-specific fields live on IncidentForm, reached
+        through the `incidentForm` composition. Clients that need
+        both read them with $expand=incidentForm and write them
+        with a deep insert/update.
+
+        `history` is excluded: it's an append-only audit trail
+        written by this service's own handlers, not something a
+        user should be able to add or remove rows from.
     =====================================================*/
-    @odata.draft.enabled
-    entity Tickets as projection on txn.Ticket excluding { history } actions {
+    // Deliberately NOT @odata.draft.enabled — see srv/handlers/tickets.js.
+    // The UI is freestyle SAPUI5, not Fiori Elements, so nothing needs the
+    // draft protocol; without it Create/Save/Submit are plain CREATE and
+    // UPDATE, which is what the lifecycle handlers hook.
+    entity Tickets as projection on txn.Ticket excluding { history };
 
-        /*-------------------------------------------------
-            SAVE — phase 1 of the two-phase create.
-            Called on the DRAFT instance (IsActiveEntity=false).
-            Assigns the ticketNumber for the chosen ticketType,
-            sets status to DRAFT and activates the CAP draft into
-            a real row. Returns the activated ticket.
-        -------------------------------------------------*/
-        action saveTicket()   returns Tickets;
-
-        /*-------------------------------------------------
-            SUBMIT — phase 2. Called on the ACTIVE instance,
-            and only while its status is still DRAFT. Moves it
-            to SUBMITTED and records the change in TicketHistory.
-        -------------------------------------------------*/
-        action submitTicket() returns Tickets;
-    };
+    // Exposed in its own right as well as through the composition, so the
+    // form can be read or patched without going through the ticket.
+    entity IncidentForms as projection on txn.IncidentForm;
 
     entity Attachments          as projection on txn.Attachment;
     entity TicketSAPNotes       as projection on txn.TicketSAPNote;
@@ -98,18 +94,17 @@ service ITSMService {
         SERVICE GROUP: (re)assignment.
         Sets the engineer and/or the support team on tickets
         that are already active. Deliberately an action rather
-        than a PATCH: Tickets is draft-enabled, so a plain
-        update would mean an edit/patch/activate round-trip
-        per ticket — unworkable for the bulk assignment the
-        Service Group dashboard is built around. Writes its
+        than a PATCH: it routes many tickets in one
+        transaction with one authorization check, which a
+        per-ticket PATCH from the client cannot do. Writes its
         own TicketHistory rows, since the SAVE-based audit
         handler never fires for this path.
         Returns the number of tickets actually changed.
     =====================================================*/
     @requires: 'ServiceGroup'
     action assignTickets(
-        tickets          : many UUID,
-        messageProcessor : UUID,
-        supportTeam      : UUID
+        tickets          : many String(30),   // Ticket.ticketID
+        messageProcessor : String(50),        // User.userId
+        supportTeam      : String(50)         // SupportTeam.teamCode
     ) returns Integer;
 }

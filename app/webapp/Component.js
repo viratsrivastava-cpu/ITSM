@@ -181,11 +181,31 @@ sap.ui.define([
       var sAuth = "Basic " + window.btoa(sUser + ":" + sPassword);
 
       return fetch(this._serviceUrl() + "currentUser()", {
-        headers: { Authorization: sAuth, Accept: "application/json" },
-        credentials: "omit"
+        headers: {
+          Authorization: sAuth,
+          Accept: "application/json",
+          // Marks this as XHR so the server drops its
+          // "WWW-Authenticate: Basic" challenge and the browser does not
+          // pop its own login dialog over ours (see srv/server.js).
+          "X-Requested-With": "XMLHttpRequest"
+        },
+        // Cookies MUST be sent. When the app is served through an
+        // authenticating proxy — BAS port forwarding, a CF approuter —
+        // the proxy needs its own session cookie, and a cookieless
+        // request is rejected with the proxy's 401 before CAP sees it.
+        // That produced "wrong username or password" for valid users in
+        // BAS while localhost, which has no proxy, worked fine.
+        credentials: "same-origin"
       }).then(function (oResponse) {
         if (oResponse.status === 401) {
-          throw new Error("Wrong user name or password.");
+          // Tell the two 401s apart. CAP answers with JSON; an
+          // authenticating proxy answers with its own HTML login page,
+          // which means the workspace session expired rather than the
+          // credentials being wrong.
+          var sType = oResponse.headers.get("content-type") || "";
+          throw new Error(sType.indexOf("html") !== -1
+            ? "The session with the server expired. Reload the page and sign in again."
+            : "Wrong user name or password.");
         }
         if (!oResponse.ok) {
           throw new Error("Sign-in failed (" + oResponse.status + ").");

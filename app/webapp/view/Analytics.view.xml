@@ -151,8 +151,7 @@
             items="{
               path: '/Tickets',
               parameters: {
-                $filter: 'IsActiveEntity eq true',
-                $expand: 'status($select=name),priority($select=name,code)',
+                  $expand: 'status($select=name),priority($select=name,code)',
                 $orderby: 'createdAt desc'
               }
             }"

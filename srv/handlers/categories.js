@@ -4,9 +4,11 @@ module.exports = function registerCategories(srv) {
 
     const { Tickets } = srv.entities;
 
-    // Validated on SAVE (draft activation) once the full record is final,
-    // rather than on every intermediate draft PATCH.
-    srv.before('SAVE', Tickets, validateCategories);
+    // Both write events, because the category tree can be set at creation
+    // and changed later. `before`, so an inconsistent hierarchy is refused
+    // while the request can still be rejected rather than rolled back.
+    srv.before('CREATE', Tickets, validateCategories);
+    srv.before('UPDATE', Tickets, validateCategories);
 
 };
 

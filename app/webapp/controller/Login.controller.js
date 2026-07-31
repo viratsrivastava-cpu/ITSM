@@ -37,11 +37,17 @@ sap.ui.define([
         .attachPatternMatched(this._onMatched, this);
     },
 
-    // The demo user list is a local-development affordance, not something
-    // to ship to a landscape where XSUAA does the sign-in.
+    // The demo user list is a development affordance, not something to
+    // ship to a landscape where XSUAA does the sign-in.
+    //
+    // Tested by excluding the productive domains rather than by matching
+    // "localhost": a dev workspace is not served from localhost. SAP
+    // Business Application Studio serves the app from
+    // port4004-workspaces-ws-xxxxx.<region>.applicationstudio.cloud.sap,
+    // so a localhost check hid the test users exactly where they are
+    // needed most and left an unlabelled login form.
     _isLocal: function () {
-      var sHost = window.location.hostname;
-      return sHost === "localhost" || sHost === "127.0.0.1" || sHost === "";
+      return !/\.(cfapps|hana)\.ondemand\.com$/i.test(window.location.hostname);
     },
 
     _onMatched: function () {

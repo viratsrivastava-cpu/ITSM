@@ -75,9 +75,7 @@ sap.ui.define([
     _loadTrends: function () {
       var that = this;
       var oModel = this.getOwnerComponent().getModel();
-      var oIncB = oModel.bindList("/Tickets", null, [], [
-        new Filter("IsActiveEntity", FilterOperator.EQ, true)
-      ], {
+      var oIncB = oModel.bindList("/Tickets", null, [], [], {
         $select: "ID,createdAt,completedAt"
       });
  
@@ -133,9 +131,7 @@ sap.ui.define([
         new Filter("lookupType", FilterOperator.EQ, "PRIORITY")
       ], { $select: "ID,code" });
  
-      var oIncB = oModel.bindList("/Tickets", null, [], [
-        new Filter("IsActiveEntity", FilterOperator.EQ, true)
-      ], {
+      var oIncB = oModel.bindList("/Tickets", null, [], [], {
         $select: "ID,ticketNumber,shortDescription,status_ID,priority_ID,messageProcessor_ID,createdAt,firstResponseAt,completedAt"
       });
  

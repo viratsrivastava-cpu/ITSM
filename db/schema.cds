@@ -79,52 +79,89 @@ context master {
         name        : String(100);
         description : String(255);
     }
+
+
+
+
 }
+
 
 
 /*=========================================================
     TRANSACTIONAL DATA CONTEXT
-    Business events — created continuously, high volume
 =========================================================*/
 context txn {
- 
-    /*---------------------------------------------------------
-        MAIN TICKET (merged Ticket + TicketForm)
-    ---------------------------------------------------------*/
-    @odata.draft.enabled
-    @cds.search: { ticketNumber, shortDescription, description }
-    entity Ticket : cuid, managed {
 
-        // Header
-        ticketNumber        : String(30) @assert.unique;
-        ticketType          : Association to master.LookupValue;   // TICKET_TYPE
-        shortDescription    : String(255);
+    /*---------------------------------------------------------
+        MAIN TICKET
+    ---------------------------------------------------------*/
+    @cds.search: { ticketNumber, shortDescription }
+    entity Ticket : managed {
+
+        // Identity
+        key ticketID     : String(30);
+        ticketNumber     : String(30) @assert.unique;
+        ticketType       : String(50);
+
+        // Generic information
+        shortDescription : String(255);
+        status           : String(50);
+        priority         : String(50);
+
+        // Ownership (UI-resolved codes/ids)
+        reportedBy       : String(50);
+        messageProcessor : String(50);
+        supportTeam      : String(50);
+
+        // SLA
+        firstResponseAt  : Timestamp;
+        dueAt            : Timestamp;
+        completedAt      : Timestamp;
+
+        // Child collections
+        attachments      : Composition of many Attachment
+                           on attachments.ticket = $self;
+
+        comments         : Composition of many TicketComment
+                           on comments.ticket = $self;
+
+        history          : Composition of many TicketHistory
+                           on history.ticket = $self;
+
+        transactions     : Composition of many TicketTransaction
+                           on transactions.ticket = $self;
+
+        scheduledActions : Composition of many ScheduledAction
+                           on scheduledActions.ticket = $self;
+
+        incidentForm     : Composition of one IncidentForm
+                           on incidentForm.ticket = $self;
+    }
+
+    /*---------------------------------------------------------
+        INCIDENT FORM (1:1 with Ticket)
+    ---------------------------------------------------------*/
+    entity IncidentForm : cuid {
+
+        ticket : Association to Ticket;
+
         description         : LargeString;
 
-        // People
-        reportedBy          : Association to master.User;
-        messageProcessor    : Association to master.User;
-        supportTeam         : Association to master.SupportTeam;
+        // UI-managed dropdown values
+        category1           : String(100);
+        category2           : String(100);
+        category3           : String(100);
+        category4           : String(100);
+        solutionCategory    : String(100);
 
-        // Categorization
-        category1           : Association to master.LookupValue;
-        category2           : Association to master.LookupValue;
-        category3           : Association to master.LookupValue;
-        category4           : Association to master.LookupValue;
-        solutionCategory    : Association to master.LookupValue;
+        impact              : String(50);
+        urgency             : String(50);
+        recommendedPriority : String(50);
 
-        // Processing
-        status              : Association to master.LookupValue;
-        impact              : Association to master.LookupValue;
-        urgency              : Association to master.LookupValue;
-        priority            : Association to master.LookupValue;
-        recommendedPriority : Association to master.LookupValue;
-
-        // Language / flags
-        language            : Association to master.LookupValue;
+        language            : String(50);
         isStandard          : Boolean default false;
 
-        // System / component
+        // Master data relationships
         system              : Association to master.SystemMaster;
         softwareComponent   : Association to master.SoftwareComponent;
         softwareVersion     : String(50);
@@ -132,21 +169,14 @@ context txn {
         configurationItem   : Association to master.ConfigurationItem;
         relatedRFC          : String(30);
 
-        // SLA
-        firstResponseAt     : Timestamp;
-        dueAt               : Timestamp;
-        completedAt         : Timestamp;
-        irtStatus           : Association to master.LookupValue;   // IRT_STATUS
-        mptStatus           : Association to master.LookupValue;   // MPT_STATUS
+        irtStatus           : String(50);
+        mptStatus           : String(50);
 
-        // Compositions (cascade delete + deep insert)
-        attachments         : Composition of many Attachment            on attachments.ticket = $self;
-        sapNotes            : Composition of many TicketSAPNote         on sapNotes.ticket = $self;
-        transactions        : Composition of many TicketTransaction     on transactions.ticket = $self;
-        scheduledActions    : Composition of many ScheduledAction       on scheduledActions.ticket = $self;
-        comments            : Composition of many TicketComment         on comments.ticket = $self;
-        history             : Composition of many TicketHistory         on history.ticket = $self;
-        sapNoteSearch       : Composition of one  SAPNoteSearchCriteria on sapNoteSearch.ticket = $self;
+        sapNotes            : Composition of many TicketSAPNote
+                              on sapNotes.ticketForm = $self;
+
+        sapNoteSearch       : Composition of one SAPNoteSearchCriteria
+                              on sapNoteSearch.ticketForm = $self;
     }
 
     /*---------------------------------------------------------
@@ -166,7 +196,9 @@ context txn {
         SAP NOTES ATTACHED TO TICKET
     ---------------------------------------------------------*/
     entity TicketSAPNote : cuid, managed {
-        ticket        : Association to Ticket;
+        // Back-link to the form, not the ticket: SAP notes are part of the
+        // incident form (see IncidentForm.sapNotes).
+        ticketForm    : Association to IncidentForm;
         sapNoteNumber : String(20);
         description   : LargeString;
         details       : LargeString;
@@ -178,7 +210,8 @@ context txn {
         SAP NOTE SEARCH CRITERIA (search popup fields)
     ---------------------------------------------------------*/
     entity SAPNoteSearchCriteria : cuid, managed {
-        ticket                    : Association to Ticket;
+        // Back-link to the form, not the ticket (see IncidentForm.sapNoteSearch).
+        ticketForm                : Association to IncidentForm;
         componentsStartWith       : String(100);
         componentsExact           : String(100);
         excludedComponents        : String(100);

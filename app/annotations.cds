@@ -1,72 +1,31 @@
 using { ITSMService } from '../srv/service';
 
 /* =========================================================
-   UI ANNOTATIONS FOR THE TWO-PHASE SAVE / SUBMIT FLOW
+   UI ANNOTATIONS
 
    ⚠ INERT IN THE CURRENT APPLICATION.
 
-   app/webapp is a freestyle SAPUI5 app — hand-written XML
-   views with their own controllers (see view/Main.view.xml
-   and controller/Main.controller.js). Nothing renders these
+   app/webapp is a freestyle SAPUI5 app — hand-written XML views
+   with their own controllers (see view/Main.view.xml and
+   controller/Main.controller.js). Nothing renders these
    annotations, so changing them will not move a single button.
 
-   The behaviour they describe is implemented for real in the
-   freestyle UI:
-     - Save / Submit visibility ....... Main.controller.js,
-       _setMode() + _setModeFromStatus()
-     - ticketNumber read-only ......... Main.view.xml, the
-       Input has editable="false"
+   This file previously declared UI.DataFieldForAction entries for
+   saveTicket and submitTicket. Those custom actions no longer
+   exist: the two-phase flow now runs entirely on CAP's CRUD
+   lifecycle (srv/handlers/tickets.js), so there is nothing for a
+   DataFieldForAction to point at.
 
-   This file is kept so the intent is declared in one place,
-   and so that adopting Fiori Elements later is a matter of
-   pointing a List Report / Object Page at ITSMService rather
-   than re-deriving the rules. Delete it if you would rather
-   not carry an unused file.
+   Under Fiori Elements the same flow would need no annotations at
+   all for Save — an object page on a draft-enabled entity renders
+   the standard draft Save, which raises SAVE on the server, which
+   is where the number and the DRAFT status are stamped. "Submit"
+   would be a plain edit of the status field, validated by the same
+   before-SAVE handler.
    ========================================================= */
 
 annotate ITSMService.Tickets with {
 
-    // Assigned by the server during saveTicket; never typed by a user.
+    // Assigned server-side while the draft is activated; never typed.
     ticketNumber @readonly;
 }
-
-annotate ITSMService.Tickets with @(
-
-    UI.Identification: [
-        {
-            $Type : 'UI.DataFieldForAction',
-            Label : 'Save',
-            Action: 'ITSMService.saveTicket',
-            // Only meaningful while the draft has not been activated.
-            @UI.Hidden: IsActiveEntity
-        },
-        {
-            $Type : 'UI.DataFieldForAction',
-            Label : 'Submit',
-            Action: 'ITSMService.submitTicket',
-            // Activated, and still sitting in DRAFT.
-            @UI.Hidden: { $edmJson: { $Not: { $And: [
-                { $Path: 'IsActiveEntity' },
-                { $Eq: [ { $Path: 'status/code' }, 'DRAFT' ] }
-            ]}}}
-        }
-    ]
-);
-
-// Determining actions: rendered in the object page footer rather than the
-// header toolbar, which is where a Fiori Elements object page puts the
-// primary "finish what you started" action.
-annotate ITSMService.Tickets with @(
-    UI.LineItem: [
-        {
-            $Type : 'UI.DataFieldForAction',
-            Label : 'Submit',
-            Action: 'ITSMService.submitTicket',
-            Determining: true,
-            @UI.Hidden: { $edmJson: { $Not: { $And: [
-                { $Path: 'IsActiveEntity' },
-                { $Eq: [ { $Path: 'status/code' }, 'DRAFT' ] }
-            ]}}}
-        }
-    ]
-);

@@ -86,7 +86,7 @@ sap.ui.define([
           showBack: true, showEdit: false, showSave: true, showSubmit: false
         },
         // Saved and activated, but still DRAFT — the only state in which
-        // submitTicket is allowed (the server rejects it in any other).
+        // a submit is allowed (before-SAVE rejects it in any other).
         draftSaved: {
           ticketLabel: sNumber || "Ticket",
           subtitle: "Saved as draft — not yet submitted",
@@ -132,7 +132,7 @@ sap.ui.define([
       this._resetPendingAttachments();
       this.getView().getModel("hist").setProperty("/list", []);
       this.getView().getModel("ui").setProperty("/ticketNumberPreview", null);
-      this._createDraftTicket();
+      this._createNewTicket();
       this._setMode("create");
       this._setupCategories();
       this._previewTicketNumber();
@@ -234,27 +234,11 @@ sap.ui.define([
     /* ---------------------------------------------------------
      * Edit / Back
      * ------------------------------------------------------- */
-    /**
-     * Draft-enabled entities can't be PATCHed directly while active —
-     * editing means asking the service for an editable draft copy first
-     * (ITSMService.draftEdit), then rebinding the page to that draft. The
-     * active context we're currently showing becomes stale the moment
-     * this succeeds, so it's swapped out immediately.
-     */
     onEdit: function () {
-      var that = this;
-      var oModel = this.getView().getModel();
-      var oAction = oModel.bindContext("ITSMService.draftEdit(...)", this._oTicketContext);
-      oAction.setParameter("PreserveChanges", true);
-
-      oAction.execute().then(function () {
-        var oDraftCtx = oAction.getBoundContext();
-        that._oTicketContext = oDraftCtx;
-        that.getView().setBindingContext(oDraftCtx);
-        that._setMode("edit");
-      }).catch(function (err) {
-        MessageBox.error("Could not start editing: " + (err.message || err));
-      });
+      // No draft round-trip any more: the ticket is a plain row, so editing
+      // is just unlocking the form. Changes are queued in the deferred
+      // "itsmGroup" batch and sent as one PATCH by onSave.
+      this._setMode("edit");
     },
 
     onBack: function () {
@@ -273,7 +257,7 @@ sap.ui.define([
      * Ask the backend for the next number and show it read-only. This is
      * display-only — it goes into the "ui" model, never into the ticket's
      * own ticketNumber field. Writing it into the real field would let the
-     * backend's "only assign if empty" check (srv/handlers/numbering.js)
+     * backend's first-activation stamping (srv/handlers/tickets.js)
      * skip re-computing on SAVE, so two tickets created around the same
      * time could both activate with the same previewed number.
      * ------------------------------------------------------- */
@@ -295,12 +279,11 @@ sap.ui.define([
       return sReal || sPreview || "";
     },
 
-    // Draft-enabled entities are addressed with both the key and
-    // IsActiveEntity — landing here always means the active (saved) copy.
+    // A plain row addressed by its key — no draft variant to disambiguate.
     _bindExistingTicket: function (sId) {
       var oModel = this.getOwnerComponent().getModel();
       var oCtx = oModel.bindContext(
-        "/Tickets(ID=" + sId + ",IsActiveEntity=true)",
+        "/Tickets(" + sId + ")",
         null,
         { $$updateGroupId: "itsmGroup" }
       ).getBoundContext();
@@ -483,13 +466,12 @@ sap.ui.define([
     },
 
     /* ---------------------------------------------------------
-     * Create a transient (pending) OData v4 context. Tickets is
-     * @odata.draft.enabled, so create() against it starts a new draft
-     * (IsActiveEntity=false) rather than a plain active row — that's what
-     * lets the user navigate away and abandon it without a half-filled
-     * ticket ever becoming visible to anyone else.
+     * Create a transient (pending) OData v4 context. Nothing is sent
+     * until onSave submits the deferred "itsmGroup" batch, so navigating
+     * away simply abandons it and no half-filled ticket ever reaches the
+     * database.
      * ------------------------------------------------------- */
-    _createDraftTicket: function () {
+    _createNewTicket: function () {
       // Models propagate from the component; the view is not yet attached
       // to the control tree during onInit, so getView().getModel() is undefined here.
       var oModel = this.getOwnerComponent().getModel();
@@ -498,8 +480,11 @@ sap.ui.define([
       });
 
       // create() returns a transient context — nothing sent to server yet
+      // Transient until Save: create() queues a POST in the deferred
+      // "itsmGroup" batch and nothing reaches the server until submitBatch.
+      // Status is deliberately not set here — before('CREATE') forces DRAFT
+      // server-side, so the client cannot put a new ticket anywhere else.
       this._oTicketContext = oListBinding.create({
-        status_ID: "a4000000-0000-4000-8000-000000000001",  // NEW (default status)
         impact_ID: null,
         urgency_ID: null,
         priority_ID: null,
@@ -518,7 +503,7 @@ sap.ui.define([
      * SAVE — queue pending attachments as nested creates under the draft,
      * flush everything into the draft, then activate it into the real
      * Tickets row. Activation is also where the backend assigns the
-     * ticket number and writes the audit history (srv/handlers/numbering.js
+     * ticket number and writes the audit history (srv/handlers/tickets.js
      * and audit.js both hook the SAVE event) — submitBatch alone would
      * leave the ticket stuck as an invisible draft forever, with no
      * number and no audit trail.
@@ -534,54 +519,52 @@ sap.ui.define([
       var that = this;
       var oModel = this.getView().getModel();
 
-      // Basic client-side check
       var oData = this._oTicketContext.getObject();
       if (!oData.shortDescription) {
         MessageBox.warning("Short Description is required.");
         return;
       }
 
-      var bEditing = this._sMode === "edit";
+      var bCreating = this._sMode === "create";
 
-      this._queuePendingAttachments();
-
+      // Plain CRUD. In create mode the queued transient context becomes one
+      // POST; in edit mode the changed fields become one PATCH. Either way
+      // the record is in the database when this resolves — before('CREATE')
+      // has stamped the number and DRAFT status, and no separate activation
+      // step exists any more.
       oModel.submitBatch("itsmGroup").then(function () {
-        // A context from ListBinding.create() stays "transient" until the
-        // server has acknowledged the POST, and v4 refuses to invoke an
-        // action on one ("Invoke for transient context not allowed").
-        // created() is the promise that resolves once it is persisted.
         return that._oTicketContext.created
           ? that._oTicketContext.created()
           : Promise.resolve();
       }).then(function () {
-        // saveTicket rather than the plain draftActivate: it is the action
-        // that assigns the ticketNumber for the chosen type and puts the
-        // ticket into DRAFT status before activating it.
-        var oSave = oModel.bindContext("ITSMService.saveTicket(...)", that._oTicketContext);
-        return oSave.execute("$auto").then(function () {
-          var oActiveCtx = oSave.getBoundContext();
-          that._oTicketContext = oActiveCtx;
-          that.getView().setBindingContext(oActiveCtx);
+        // Attachments are a composition, so they can only be posted once
+        // the parent has a real key.
+        if (!that._hasPendingAttachments()) { return Promise.resolve(); }
+        that._queuePendingAttachments();
+        return oModel.submitBatch("itsmGroup");
+      }).then(function () {
+        var sNumber = that._oTicketContext.getProperty("ticketNumber");
+        that._resetPendingAttachments();
+        MessageToast.show("Ticket " + sNumber + (bCreating ? " saved as draft." : " updated."));
 
-          var sNumber = oActiveCtx.getProperty("ticketNumber");
-          that._resetPendingAttachments();
-          MessageToast.show("Ticket " + sNumber + (bEditing ? " updated." : " saved as draft."));
-
-          // Deliberately stays on the page instead of returning to the
-          // dashboard: the number has just appeared in the form, and Submit
-          // is the next step of the two-phase flow.
-          that._setModeFromStatus(oActiveCtx);
-        });
+        // Stay on the page: the number has just appeared, and Submit is the
+        // next step of the two-phase flow.
+        that._setModeFromStatus(that._oTicketContext);
       }).catch(function (err) {
         MessageBox.error("Save failed: " + (err.message || err));
       });
+    },
+
+    _hasPendingAttachments: function () {
+      var aList = this.getView().getModel("attachments").getProperty("/list") || [];
+      return aList.length > 0;
     },
 
     /* ---------------------------------------------------------
      * After a save (or when opening an existing ticket) decide
      * whether Submit applies: it does only while the ticket is
      * still in DRAFT status, which is also what the server
-     * enforces in submitTicket.
+     * enforces in before('SAVE').
      * ------------------------------------------------------- */
     _setModeFromStatus: function (oCtx) {
       var that = this;
@@ -600,23 +583,8 @@ sap.ui.define([
       });
     },
 
-    // The STATUS/DRAFT lookup id, fetched once and remembered.
     _requestDraftStatusId: function () {
-      if (this._pDraftStatusId) { return this._pDraftStatusId; }
-
-      var oModel = this.getOwnerComponent().getModel();
-      var oBinding = oModel.bindList("/LookupValues", null, [], [
-        new Filter("lookupType", FilterOperator.EQ, "STATUS"),
-        new Filter("code", FilterOperator.EQ, "DRAFT")
-      ], { $select: "ID" });
-
-      this._pDraftStatusId = oBinding.requestContexts(0, 1).then(function (aCtx) {
-        return aCtx.length ? aCtx[0].getProperty("ID") : null;
-      }).catch(function () {
-        return null;
-      });
-
-      return this._pDraftStatusId;
+      return this._requestStatusId("DRAFT").catch(function () { return null; });
     },
 
     /* ---------------------------------------------------------
@@ -638,18 +606,42 @@ sap.ui.define([
         return;
       }
 
-      // Phase 2. Only reachable once Save has activated the ticket, so the
-      // context here is always the active one submitTicket expects.
-      var oModel = this.getView().getModel();
-      var oSubmit = oModel.bindContext("ITSMService.submitTicket(...)", this._oTicketContext);
+      // Submit is one PATCH of the status. before('UPDATE') checks the
+      // transition is legal and that the caller is the reporter;
+      // after('UPDATE') writes the history row. No custom action, and no
+      // second code path that could drift from an ordinary edit.
+      var sNumber = this._oTicketContext.getProperty("ticketNumber");
 
-      oSubmit.execute("$auto").then(function () {
-        var oCtx = oSubmit.getBoundContext();
-        MessageToast.show("Ticket " + oCtx.getProperty("ticketNumber") + " submitted.");
+      this._requestStatusId("SUBMITTED").then(function (sSubmittedId) {
+        if (!sSubmittedId) { throw new Error("No SUBMITTED status is configured."); }
+        // Third argument is the group id: the context's own group is the
+        // deferred "itsmGroup", whose promise would not settle until
+        // something submitted that batch. "$auto" sends it immediately.
+        return that._oTicketContext.setProperty("status_ID", sSubmittedId, "$auto");
+      }).then(function () {
+        MessageToast.show("Ticket " + sNumber + " submitted.");
         that.getOwnerComponent().getRouter().navTo("dashboard");
       }).catch(function (err) {
         MessageBox.error("Submit failed: " + (err.message || err));
       });
+    },
+
+
+    // A STATUS lookup id by code, fetched once per code and remembered.
+    _requestStatusId: function (sCode) {
+      this._mStatusIds = this._mStatusIds || {};
+      if (this._mStatusIds[sCode]) { return this._mStatusIds[sCode]; }
+
+      var oBinding = this.getOwnerComponent().getModel().bindList("/LookupValues", null, [], [
+        new Filter("lookupType", FilterOperator.EQ, "STATUS"),
+        new Filter("code", FilterOperator.EQ, sCode)
+      ], { $select: "ID" });
+
+      this._mStatusIds[sCode] = oBinding.requestContexts(0, 1).then(function (aCtx) {
+        return aCtx.length ? aCtx[0].getProperty("ID") : null;
+      });
+
+      return this._mStatusIds[sCode];
     },
 
     /* ---------------------------------------------------------

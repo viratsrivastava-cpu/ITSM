@@ -303,9 +303,7 @@ sap.ui.define([
         new Filter("lookupType", FilterOperator.EQ, "CATEGORY1")
       ], { $select: "ID,name" });
  
-      var oIncB = oModel.bindList("/Tickets", null, [], [
-        new Filter("IsActiveEntity", FilterOperator.EQ, true)
-      ], {
+      var oIncB = oModel.bindList("/Tickets", null, [], [], {
         $select: "ID,status_ID,priority_ID,category1_ID,messageProcessor_ID,createdAt,firstResponseAt,completedAt"
       });
  

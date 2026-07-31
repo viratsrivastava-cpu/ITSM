@@ -308,9 +308,7 @@ sap.ui.define([
       var oTeamB = oModel.bindList("/SupportTeams", null, [new Sorter("name")], [], {
         $select: "ID,name,isActive"
       });
-      var oTicketB = oModel.bindList("/Tickets", null, [], [
-        new Filter("IsActiveEntity", FilterOperator.EQ, true)
-      ], {
+      var oTicketB = oModel.bindList("/Tickets", null, [], [], {
         $select: [
           "ID", "ticketNumber", "shortDescription",
           "reportedBy_ID", "messageProcessor_ID", "supportTeam_ID",
