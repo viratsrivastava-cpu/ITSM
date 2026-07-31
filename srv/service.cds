@@ -48,6 +48,10 @@ service ITSMService {
     // The UI is freestyle SAPUI5, not Fiori Elements, so nothing needs the
     // draft protocol; without it Create/Save/Submit are plain CREATE and
     // UPDATE, which is what the lifecycle handlers hook.
+    // Direct POST is refused by a guard in handlers/create-ticket, not by
+    // @Capabilities.InsertRestrictions: that annotation is enforced for
+    // internal srv.run(INSERT) as well, which would block the action's own
+    // insert and force it to bypass the CREATE lifecycle.
     entity Tickets as projection on txn.Ticket excluding { history };
 
     // Exposed in its own right as well as through the composition, so the
@@ -89,6 +93,53 @@ service ITSMService {
     }
 
     function currentUser() returns CurrentUser;
+
+    /*=====================================================
+        CREATE TICKET — the only way to raise a ticket.
+
+        An ACTION, not a function (it has side effects) and not
+        an event (the caller needs the created ticket back
+        synchronously). Unbound, because there is no instance to
+        bind to yet.
+
+        The point of the explicit parameter types is that they
+        ARE the contract: ticketNumber, ticketID, status,
+        reportedBy and the managed audit fields simply do not
+        exist as inputs, so a client cannot supply or override
+        them — that guarantee is structural, not a convention
+        enforced by handler code.
+    =====================================================*/
+    type NewTicketForm {
+        description         : LargeString;
+        category1           : String(100);
+        category2           : String(100);
+        category3           : String(100);
+        category4           : String(100);
+        impact              : String(50);
+        urgency             : String(50);
+        language            : String(50);
+        isStandard          : Boolean;
+        system              : UUID;
+        softwareComponent   : UUID;
+        softwareVersion     : String(50);
+        supportPackage      : Integer;
+        configurationItem   : UUID;
+        relatedRFC          : String(30);
+    }
+
+    type NewTicket {
+        // Header fields a reporter is allowed to set.
+        ticketType       : String(50);
+        shortDescription : String(255);
+        priority         : String(50);
+        supportTeam      : String(50);
+        messageProcessor : String(50);
+
+        // The incident form, created together with the ticket.
+        form             : NewTicketForm;
+    }
+
+    action createTicket(ticket : NewTicket) returns Tickets;
 
     /*=====================================================
         SERVICE GROUP: (re)assignment.

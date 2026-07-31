@@ -151,7 +151,6 @@
             items="{
               path: '/Tickets',
               parameters: {
-                  $expand: 'status($select=name),priority($select=name,code)',
                 $orderby: 'createdAt desc'
               }
             }"
@@ -169,8 +168,8 @@
                 <cells>
                   <Text text="{ticketNumber}"/>
                   <Text text="{shortDescription}"/>
-                  <ObjectStatus text="{status/name}" state="{path: 'status/name', formatter: '.formatStatusState'}"/>
-                  <ObjectStatus text="{priority/name}" state="{path: 'priority/name', formatter: '.formatPriorityState'}"/>
+                  <ObjectStatus text="{path: 'status', formatter: '.formatStatusName'}" state="{path: 'status', formatter: '.formatStatusState'}"/>
+                  <ObjectStatus text="{path: 'priority', formatter: '.formatPriorityName'}" state="{path: 'priority', formatter: '.formatPriorityState'}"/>
                 </cells>
               </ColumnListItem>
             </items>

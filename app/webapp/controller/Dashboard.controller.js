@@ -5,8 +5,9 @@ sap.ui.define([
   "sap/ui/model/FilterOperator",
   "sap/ui/model/Sorter",
   "sap/m/MessageToast",
-  "itsm/ui/util/UserMenu"
-], function (Controller, JSONModel, Filter, FilterOperator, Sorter, MessageToast, UserMenu) {
+  "itsm/ui/util/UserMenu",
+  "itsm/ui/util/Lookups"
+], function (Controller, JSONModel, Filter, FilterOperator, Sorter, MessageToast, UserMenu, Lookups) {
   "use strict";
  
   // The full pool of KPI tiles a user can choose from — always exactly 7
@@ -286,7 +287,16 @@ sap.ui.define([
      * ------------------------------------------------------- */
     _loadCounts: function () {
       var that = this;
-      var oModel = this.getOwnerComponent().getModel();
+      var oComponent = this.getOwnerComponent();
+
+      // Defence in depth. The component's route guard redirects a Service
+      // Group user away from this page, but routeMatched only fires once
+      // the view has been built — so without this check the end-user
+      // dashboard would still fire its queries for a page that is about to
+      // be replaced.
+      if (oComponent.getModel("user").getProperty("/isServiceGroup")) { return; }
+
+      var oModel = oComponent.getModel();
  
       // Read only flat, primitive fields — no nested navigation access
       // (getProperty("status/code") on an expand is not reliable in v4).
@@ -304,7 +314,8 @@ sap.ui.define([
       ], { $select: "ID,name" });
  
       var oIncB = oModel.bindList("/Tickets", null, [], [], {
-        $select: "ID,status_ID,priority_ID,category1_ID,messageProcessor_ID,createdAt,firstResponseAt,completedAt"
+        $select: "ticketID,status,priority,messageProcessor,createdAt,firstResponseAt,completedAt",
+        $expand: "incidentForm($select=category1)"
       });
  
       Promise.all([
@@ -356,24 +367,21 @@ sap.ui.define([
           var sBucket = weekBucket(sCreated);
           bump(mStatusWeek, "ALL", sBucket);
  
-          var sStatusId = oCtx.getProperty("status_ID");
-          var sStatusCode = sStatusId && mStatusCode[sStatusId];
+          var sStatusCode = oCtx.getProperty("status");
           if (sStatusCode) {
             mStatusCount[sStatusCode] = (mStatusCount[sStatusCode] || 0) + 1;
             bump(mStatusWeek, sStatusCode, sBucket);
           }
  
-          var sCatId = oCtx.getProperty("category1_ID");
-          var sName = sCatId && mCatName[sCatId];
+          var sName = oCtx.getProperty("incidentForm/category1");
           if (sName) { mCatCount[sName] = (mCatCount[sName] || 0) + 1; }
  
-          if (!oCtx.getProperty("messageProcessor_ID")) {
+          if (!oCtx.getProperty("messageProcessor")) {
             iUnassigned++;
             bump(mMetricWeek, "unassigned", sBucket);
           }
  
-          var sPriId = oCtx.getProperty("priority_ID");
-          var sPriCode = sPriId && mPriCode[sPriId];
+          var sPriCode = oCtx.getProperty("priority");
           if (sPriCode) {
             mPriorityCount[sPriCode] = (mPriorityCount[sPriCode] || 0) + 1;
             bump(mPriorityWeek, sPriCode, sBucket);
@@ -640,25 +648,25 @@ sap.ui.define([
  
       var sStatus = this.byId("statusFilter").getSelectedKey() || this._sStatusCode;
       if (sStatus) {
-        aFilters.push(new Filter("status/code", FilterOperator.EQ, sStatus));
+        aFilters.push(new Filter("status", FilterOperator.EQ, sStatus));
       }
       var sCategory = this.byId("categoryFilter").getSelectedKey();
-      if (sCategory) { aFilters.push(new Filter("category1/name", FilterOperator.EQ, sCategory)); }
+      if (sCategory) { aFilters.push(new Filter("incidentForm/category1", FilterOperator.EQ, sCategory)); }
  
       var sPriority = this.byId("priorityFilter").getSelectedKey();
-      if (sPriority) { aFilters.push(new Filter("priority/code", FilterOperator.EQ, sPriority)); }
+      if (sPriority) { aFilters.push(new Filter("priority", FilterOperator.EQ, sPriority)); }
  
       var sAssignee = this.byId("assigneeFilter").getSelectedKey();
-      if (sAssignee) { aFilters.push(new Filter("messageProcessor_ID", FilterOperator.EQ, sAssignee)); }
+      if (sAssignee) { aFilters.push(new Filter("messageProcessor", FilterOperator.EQ, sAssignee)); }
  
       var sImpact = this.byId("impactFilter").getSelectedKey();
-      if (sImpact) { aFilters.push(new Filter("impact/code", FilterOperator.EQ, sImpact)); }
+      if (sImpact) { aFilters.push(new Filter("incidentForm/impact", FilterOperator.EQ, sImpact)); }
  
       var sUrgency = this.byId("urgencyFilter").getSelectedKey();
-      if (sUrgency) { aFilters.push(new Filter("urgency/code", FilterOperator.EQ, sUrgency)); }
+      if (sUrgency) { aFilters.push(new Filter("incidentForm/urgency", FilterOperator.EQ, sUrgency)); }
  
       if (this._sUnassignedOnly) {
-        aFilters.push(new Filter("messageProcessor_ID", FilterOperator.EQ, null));
+        aFilters.push(new Filter("messageProcessor", FilterOperator.EQ, null));
       }
  
       if (this._sSearch) {
@@ -686,7 +694,7 @@ sap.ui.define([
       var oItem = oEvent.getParameter("listItem") || oEvent.getSource();
       var oCtx = oItem.getBindingContext();
       if (oCtx) {
-        this.getOwnerComponent().getRouter().navTo("detail", { id: oCtx.getProperty("ID") });
+        this.getOwnerComponent().getRouter().navTo("detail", { id: oCtx.getProperty("ticketID") });
       }
     },
  
@@ -694,8 +702,11 @@ sap.ui.define([
       this.getOwnerComponent().getRouter().navTo("create");
     },
  
+    // "Home" is role-dependent: a Service Group user must never be sent to
+    // the end-user dashboard, so the destination comes from the component's
+    // route policy rather than being hard-coded here.
     onGoDashboard: function () {
-      this.getOwnerComponent().getRouter().navTo("dashboard");
+      this.getOwnerComponent().navToHome();
     },
  
     onGoAnalytics: function () {
@@ -885,27 +896,43 @@ sap.ui.define([
  
     // Status -> sap.ui.core.ValueState, so open/blocked tickets stand out
     // (Customer Action in red) and closed ones read as done (green).
-    formatStatusState: function (sName) {
-      switch (sName) {
-        case "New": return "Information";
-        case "In Process": return "Warning";
-        case "Customer Action": return "Error";
-        case "Solution Proposed": return "Warning";
-        case "Confirmed": return "Success";
-        case "Closed": return "Success";
+    // Receives the status CODE now (the column is no longer an association).
+    formatStatusState: function (sCode) {
+      switch (sCode) {
+        case "DRAFT": return "None";
+        case "SUBMITTED": return "Information";
+        case "NEW": return "Information";
+        case "IN_PROCESS": return "Warning";
+        case "CUSTOMER_ACTION": return "Error";
+        case "SOLUTION_PROPOSED": return "Warning";
+        case "CONFIRMED": return "Success";
+        case "CLOSED": return "Success";
         default: return "None";
       }
     },
  
     // Priority -> sap.ui.core.ValueState, so P1/P2 (needs urgent attention)
     // pop in red/amber against the rest of the row.
-    formatPriorityState: function (sName) {
-      if (!sName) { return "None"; }
-      if (sName.indexOf("P1") === 0) { return "Error"; }
-      if (sName.indexOf("P2") === 0) { return "Warning"; }
-      if (sName.indexOf("P3") === 0) { return "Information"; }
+    // Receives the priority CODE now (P1..P4).
+    formatPriorityState: function (sCode) {
+      if (!sCode) { return "None"; }
+      if (sCode.indexOf("P1") === 0) { return "Error"; }
+      if (sCode.indexOf("P2") === 0) { return "Warning"; }
+      if (sCode.indexOf("P3") === 0) { return "Information"; }
       return "None";
     },
+    /* ---------------------------------------------------------
+     * Code -> display name. Since the entity split, status,
+     * priority, impact and urgency are plain codes on the ticket
+     * rather than associations, so there is no {status/name} to
+     * bind. These resolve the same text from the LookupValue
+     * master data (loaded once in Component.init).
+     * ------------------------------------------------------- */
+    formatStatusName: function (sCode) { return Lookups.name("STATUS", sCode); },
+    formatPriorityName: function (sCode) { return Lookups.name("PRIORITY", sCode); },
+    formatImpactName: function (sCode) { return Lookups.name("IMPACT", sCode); },
+    formatUrgencyName: function (sCode) { return Lookups.name("URGENCY", sCode); },
+
  
     /* ---------------------------------------------------------
      * SLA badge — response clock runs from createdAt until

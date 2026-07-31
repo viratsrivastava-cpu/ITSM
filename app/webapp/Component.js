@@ -1,9 +1,10 @@
 sap.ui.define([
   "sap/ui/core/UIComponent",
   "sap/ui/core/mvc/XMLView",
+  "itsm/ui/util/Lookups",
   "sap/ui/model/json/JSONModel",
   "sap/m/MessageToast"
-], function (UIComponent, XMLView, JSONModel, MessageToast) {
+], function (UIComponent, XMLView, Lookups, JSONModel, MessageToast) {
   "use strict";
 
   /* =========================================================
@@ -33,6 +34,36 @@ sap.ui.define([
 
   var SESSION_KEY = "itsm.session";
 
+  /* =========================================================
+   * ROUTE ACCESS POLICY — the single place that decides who may
+   * see which page.
+   *
+   * The role itself is NOT decided here: it comes from the
+   * backend, which derives it from the authenticated identity
+   * (req.user.is('ServiceGroup') in srv/handlers/assignment.js)
+   * and returns it from currentUser(). This table only maps that
+   * role onto routes, so there is no second definition of what a
+   * Service Group user is.
+   *
+   *   serviceGroup : only a Service Group user may open it
+   *   endUser      : only a non-Service-Group user may open it
+   *   (absent)     : open to any signed-in user
+   *
+   * Service Group users and end users get completely separate
+   * page sets; "detail", "create" and "analytics" stay shared
+   * because a coordinator has to be able to open an incident and
+   * the SLA board from their own dashboard.
+   * ======================================================= */
+  var ROUTE_POLICY = {
+    dashboard: "endUser",            // the normal user dashboard
+    list:      "endUser",            // the normal user ticket list
+    serviceGroup:        "serviceGroup",
+    serviceGroupTickets: "serviceGroup"
+  };
+
+  // Where each role starts, and where "home" sends them.
+  var HOME_ROUTE = { serviceGroup: "serviceGroup", endUser: "dashboard" };
+
   return UIComponent.extend("itsm.ui.Component", {
     metadata: { manifest: "json" },
 
@@ -55,30 +86,41 @@ sap.ui.define([
       oRouter.attachRouteMatched(this._onRouteMatched, this);
 
       if (this.isAuthenticated()) {
-        // A support coordinator's job starts at the analytics view, not at
-        // a ticket list — so that is where they land. Only when they
-        // arrived without a deep link of their own, so a bookmarked or
-        // shared URL still wins.
-        //
-        // The hash is set before the router starts rather than navTo'd
-        // after: initialize() would otherwise match the empty pattern
-        // first, building and data-loading the Service Desk dashboard for
-        // a page nobody is going to see.
-        if (this.getModel("user").getProperty("/isServiceGroup") && !this._hasInitialHash()) {
-          window.location.hash = "#/service-group";
-        }
-        oRouter.initialize();
+        // Status/priority/impact/urgency are plain codes since the entity
+        // split, so their display names come from LookupValue instead of an
+        // $expand. Loaded before the router starts, so no binding ever
+        // renders a raw code first and then flips to a name.
+        var that = this;
+        Lookups.load(this.getModel()).then(function () {
+          that._startRouting();
+        });
         return;
       }
 
-      // Signed out: the router is deliberately never initialized, and the
-      // login view is placed directly. A route-based guard cannot do this
-      // job — neither routeMatched nor beforeRouteMatched can cancel a
-      // target, so landing on #/service-group would build and briefly show
-      // that page (firing unauthenticated OData requests) before any
-      // redirect could take effect. Signing in reloads the page, so the
-      // router only ever starts in the authenticated state.
       this._showLogin();
+    },
+
+    // Signed out, the router is deliberately never initialized and the
+    // login view is placed directly (see _showLogin): neither routeMatched
+    // nor beforeRouteMatched can cancel a target, so landing on
+    // #/service-group would build and briefly show that page — firing
+    // unauthenticated OData requests — before any redirect took effect.
+    _startRouting: function () {
+      var oRouter = this.getRouter();
+
+      // A support coordinator's job starts at their analytics view, not at
+      // the end-user dashboard. Only when they arrived without a deep link
+      // of their own, so a bookmarked or shared URL still wins (it is then
+      // policed by _onRouteMatched like any other navigation).
+      //
+      // The hash is set BEFORE the router starts rather than navTo'd after:
+      // initialize() would otherwise match the empty pattern first, which
+      // builds and data-loads the end-user dashboard for a page a Service
+      // Group user must never see.
+      if (this._role() === "serviceGroup" && !this._hasInitialHash()) {
+        window.location.hash = "#/service-group";
+      }
+      oRouter.initialize();
     },
 
     // "" and "#/" both mean "no route was asked for". Sign-in itself lands
@@ -234,19 +276,56 @@ sap.ui.define([
     },
 
     /* ---------------------------------------------------------
-     * Role guard. Only reachable when already signed in (see init),
-     * so it has one job: keep a hand-typed #/service-group away
-     * from users without the role. Convenience only — assignTickets
-     * is annotated @requires:'ServiceGroup' on the server, so hiding
-     * the screen is not what actually protects anything.
+     * The role of the signed-in user, as one of the keys used by
+     * ROUTE_POLICY. Read from the "user" model, which Component
+     * fills from the backend's currentUser() — so the role is
+     * never inferred in the client.
+     * ------------------------------------------------------- */
+    _role: function () {
+      return this.getModel("user").getProperty("/isServiceGroup") ? "serviceGroup" : "endUser";
+    },
+
+    /** The landing route for the signed-in user. */
+    homeRoute: function () {
+      return HOME_ROUTE[this._role()];
+    },
+
+    /** Send the user to their own dashboard, whichever that is. */
+    navToHome: function () {
+      this.getRouter().navTo(this.homeRoute());
+    },
+
+    /* ---------------------------------------------------------
+     * ROUTE GUARD — enforced on every navigation, in both
+     * directions.
+     *
+     * routeMatched fires for hand-typed URLs, bookmarks, the
+     * browser back button and in-app navTo alike, so this is the
+     * one choke point that covers all of them. Redirects use
+     * replace (the third argument) so the blocked page does not
+     * stay in history and bounce the user back and forth.
+     *
+     * This is convenience and containment, not the security
+     * boundary: the real protection is on the server, where the
+     * service requires an authenticated user and assignTickets is
+     * annotated @requires:'ServiceGroup'. Hiding a page never
+     * protects the data behind it.
      * ------------------------------------------------------- */
     _onRouteMatched: function (oEvent) {
       var sRoute = oEvent.getParameter("name");
-      if (sRoute !== "serviceGroup" && sRoute !== "serviceGroupTickets") { return; }
-      if (this.getModel("user").getProperty("/isServiceGroup")) { return; }
+      var sRequired = ROUTE_POLICY[sRoute];
 
-      MessageToast.show("The Service Group dashboard needs the Service Group role.");
-      this.getRouter().navTo("dashboard", {}, true);
+      // No policy for this route: open to any signed-in user.
+      if (!sRequired) { return; }
+
+      var sRole = this._role();
+      if (sRequired === sRole) { return; }
+
+      MessageToast.show(sRole === "serviceGroup"
+        ? "That page is not part of the Service Group workspace."
+        : "The Service Group dashboard needs the Service Group role.");
+
+      this.getRouter().navTo(HOME_ROUTE[sRole], {}, true);
     }
 
   });

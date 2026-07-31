@@ -114,7 +114,6 @@
           items="{
             path: '/Tickets',
             parameters: {
-              $expand: 'status($select=name),priority($select=name,code),category1($select=name),impact($select=name),urgency($select=name),messageProcessor($select=name)',
               $orderby: 'createdAt desc'
             }
           }"
@@ -167,15 +166,15 @@
               <cells>
                 <ObjectIdentifier title="{ticketNumber}"/>
                 <Text text="{shortDescription}"/>
-                <ObjectStatus text="{status/name}" state="{path: 'status/name', formatter: '.formatStatusState'}"/>
-                <ObjectStatus text="{priority/name}" state="{path: 'priority/name', formatter: '.formatPriorityState'}"/>
+                <ObjectStatus text="{path: 'status', formatter: '.formatStatusName'}" state="{path: 'status', formatter: '.formatStatusState'}"/>
+                <ObjectStatus text="{path: 'priority', formatter: '.formatPriorityName'}" state="{path: 'priority', formatter: '.formatPriorityState'}"/>
                 <ObjectStatus
-                  text="{parts: ['priority/code','createdAt','firstResponseAt','completedAt'], formatter: '.formatSlaText'}"
-                  state="{parts: ['priority/code','createdAt','firstResponseAt','completedAt'], formatter: '.formatSlaState'}"/>
-                <Text text="{category1/name}"/>
-                <Text text="{impact/name}"/>
-                <Text text="{urgency/name}"/>
-                <Text text="{messageProcessor/name}"/>
+                  text="{parts: ['priority','createdAt','firstResponseAt','completedAt'], formatter: '.formatSlaText'}"
+                  state="{parts: ['priority','createdAt','firstResponseAt','completedAt'], formatter: '.formatSlaState'}"/>
+                <Text text="{incidentForm/category1}"/>
+                <Text text="{path: 'incidentForm/impact', formatter: '.formatImpactName'}"/>
+                <Text text="{path: 'incidentForm/urgency', formatter: '.formatUrgencyName'}"/>
+                <Text text="{messageProcessor}"/>
                 <Text text="{ path: 'createdAt', formatter: '.formatDateTime' }"/>
               </cells>
             </ColumnListItem>

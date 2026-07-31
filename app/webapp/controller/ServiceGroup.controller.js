@@ -303,18 +303,21 @@ sap.ui.define([
         $select: "ID,lookupType,code,name"
       });
       var oUserB = oModel.bindList("/Users", null, [new Sorter("name")], [], {
-        $select: "ID,name,isActive"
+        $select: "ID,userId,name,isActive"
       });
       var oTeamB = oModel.bindList("/SupportTeams", null, [new Sorter("name")], [], {
-        $select: "ID,name,isActive"
+        $select: "ID,teamCode,name,isActive"
       });
       var oTicketB = oModel.bindList("/Tickets", null, [], [], {
+        // Header columns live on the ticket; the incident-specific ones
+        // come from the form through the composition.
         $select: [
-          "ID", "ticketNumber", "shortDescription",
-          "reportedBy_ID", "messageProcessor_ID", "supportTeam_ID",
-          "category1_ID", "status_ID", "priority_ID", "impact_ID", "urgency_ID",
+          "ticketID", "ticketNumber", "shortDescription",
+          "reportedBy", "messageProcessor", "supportTeam",
+          "status", "priority", "ticketType",
           "createdAt", "modifiedAt", "dueAt", "firstResponseAt", "completedAt"
-        ].join(",")
+        ].join(","),
+        $expand: "incidentForm($select=category1,impact,urgency)"
       });
 
       // When an incident was routed to a group. There is no assignedAt
@@ -323,7 +326,7 @@ sap.ui.define([
       // assignment.js), so the first such entry IS the assignment moment.
       var oHistB = oModel.bindList("/TicketHistory", null, [], [
         new Filter("fieldName", FilterOperator.EQ, "supportTeam")
-      ], { $select: "ID,ticket_ID,newValue,createdAt" });
+      ], { $select: "ID,ticket_ticketID,newValue,createdAt" });
 
       this._pLoad = Promise.all([
         oLookupB.requestContexts(0, 2000),
@@ -335,7 +338,7 @@ sap.ui.define([
       ]).then(function (aRes) {
         that._indexMasterData(aRes[0], aRes[1], aRes[2]);
         that._indexAssignments(aRes[4]);
-        that._sCurrentUserId = aRes[5] && aRes[5].ID;
+        that._sCurrentUserId = aRes[5] && aRes[5].userId;
 
         that._aAll = aRes[3].map(function (oCtx) { return that._buildRow(oCtx); });
 
@@ -375,16 +378,18 @@ sap.ui.define([
         that._mByType[sType].push(oEntry);
       });
 
+      // Keyed by the value the ticket actually stores now: User.userId and
+      // SupportTeam.teamCode, not the UUIDs the associations used to carry.
       this._mUser = {};
       this._aUsers = aUsers.map(function (oCtx) {
-        var o = { ID: oCtx.getProperty("ID"), name: oCtx.getProperty("name"), isActive: oCtx.getProperty("isActive") };
+        var o = { ID: oCtx.getProperty("userId"), name: oCtx.getProperty("name"), isActive: oCtx.getProperty("isActive") };
         that._mUser[o.ID] = o;
         return o;
       });
 
       this._mTeam = {};
       this._aTeams = aTeams.map(function (oCtx) {
-        var o = { ID: oCtx.getProperty("ID"), name: oCtx.getProperty("name"), isActive: oCtx.getProperty("isActive") };
+        var o = { ID: oCtx.getProperty("teamCode"), name: oCtx.getProperty("name"), isActive: oCtx.getProperty("isActive") };
         that._mTeam[o.ID] = o;
         return o;
       });
@@ -395,7 +400,7 @@ sap.ui.define([
       var mFirst = {};
       aHistory.forEach(function (oCtx) {
         if (!oCtx.getProperty("newValue")) { return; }   // a clearing, not an assignment
-        var sTicket = oCtx.getProperty("ticket_ID");
+        var sTicket = oCtx.getProperty("ticket_ticketID");
         var iWhen = new Date(oCtx.getProperty("createdAt")).getTime();
         if (isNaN(iWhen)) { return; }
         if (mFirst[sTicket] === undefined || iWhen < mFirst[sTicket]) { mFirst[sTicket] = iWhen; }
@@ -409,19 +414,18 @@ sap.ui.define([
      * load rather than re-derived on every filter change.
      * ------------------------------------------------------- */
     _buildRow: function (oCtx) {
-      var mLookup = this._mLookup;
-      function lookup(sId) { return (sId && mLookup[sId]) || null; }
+      // Since the entity split these are plain codes, so the LookupValue
+      // round-trip is only needed to turn them into display names.
+      var sStatusCode = oCtx.getProperty("status");
+      var sPriorityCode = oCtx.getProperty("priority");
+      var sImpactCode = oCtx.getProperty("incidentForm/impact");
+      var sUrgencyCode = oCtx.getProperty("incidentForm/urgency");
+      var sCategoryName = oCtx.getProperty("incidentForm/category1");
 
-      var oStatus = lookup(oCtx.getProperty("status_ID"));
-      var oPriority = lookup(oCtx.getProperty("priority_ID"));
-      var oImpact = lookup(oCtx.getProperty("impact_ID"));
-      var oUrgency = lookup(oCtx.getProperty("urgency_ID"));
-      var oCategory = lookup(oCtx.getProperty("category1_ID"));
-
-      var sID = oCtx.getProperty("ID");
-      var sEngineerId = oCtx.getProperty("messageProcessor_ID");
-      var sTeamId = oCtx.getProperty("supportTeam_ID");
-      var sReporterId = oCtx.getProperty("reportedBy_ID");
+      var sID = oCtx.getProperty("ticketID");
+      var sEngineerId = oCtx.getProperty("messageProcessor");
+      var sTeamId = oCtx.getProperty("supportTeam");
+      var sReporterId = oCtx.getProperty("reportedBy");
 
       var sCreatedAt = oCtx.getProperty("createdAt");
       var sModifiedAt = oCtx.getProperty("modifiedAt");
@@ -431,11 +435,9 @@ sap.ui.define([
 
       var iCreatedMs = sCreatedAt ? new Date(sCreatedAt).getTime() : null;
       var iNow = Date.now();
-      var sPriorityCode = oPriority ? oPriority.code : null;
       var oSla = this._computeSla(sPriorityCode, sCreatedAt, sFirstResponseAt, sCompletedAt);
 
-      var bClosed = !!sCompletedAt ||
-        (oStatus && CLOSED_STATUS_CODES.indexOf(oStatus.code) !== -1);
+      var bClosed = !!sCompletedAt || CLOSED_STATUS_CODES.indexOf(sStatusCode) !== -1;
       var iAgeMs = iCreatedMs === null ? 0 : (iNow - iCreatedMs);
 
       // Only incidents whose routing is actually recorded get a lag; the
@@ -452,25 +454,25 @@ sap.ui.define([
         shortDescription: oCtx.getProperty("shortDescription") || "",
 
         reporterId: sReporterId,
-        reporterName: (this._mUser[sReporterId] && this._mUser[sReporterId].name) || "—",
+        reporterName: (this._mUser[sReporterId] && this._mUser[sReporterId].name) || sReporterId || "—",
         engineerId: sEngineerId || null,
         engineerName: (this._mUser[sEngineerId] && this._mUser[sEngineerId].name) || "Unassigned",
         engineerState: sEngineerId ? "None" : "Warning",
         teamId: sTeamId || null,
         teamName: (this._mTeam[sTeamId] && this._mTeam[sTeamId].name) || "Unassigned",
 
-        categoryName: oCategory ? oCategory.name : "Uncategorized",
-        statusCode: oStatus ? oStatus.code : null,
-        statusName: oStatus ? oStatus.name : "—",
-        statusState: this.formatStatusState(oStatus ? oStatus.name : null),
+        categoryName: sCategoryName || "Uncategorized",
+        statusCode: sStatusCode,
+        statusName: this._lookupName("STATUS", sStatusCode),
+        statusState: this.formatStatusState(sStatusCode),
         priorityCode: sPriorityCode,
-        priorityName: oPriority ? oPriority.name : "—",
-        priorityState: this.formatPriorityState(oPriority ? oPriority.name : null),
+        priorityName: this._lookupName("PRIORITY", sPriorityCode),
+        priorityState: this.formatPriorityState(sPriorityCode),
         priorityRank: sPriorityCode ? Number(sPriorityCode.slice(1)) : 99,
-        impactCode: oImpact ? oImpact.code : null,
-        impactName: oImpact ? oImpact.name : "—",
-        urgencyCode: oUrgency ? oUrgency.code : null,
-        urgencyName: oUrgency ? oUrgency.name : "—",
+        impactCode: sImpactCode,
+        impactName: this._lookupName("IMPACT", sImpactCode),
+        urgencyCode: sUrgencyCode,
+        urgencyName: this._lookupName("URGENCY", sUrgencyCode),
 
         createdAt: sCreatedAt,
         createdMs: iCreatedMs,
@@ -493,7 +495,7 @@ sap.ui.define([
         deadline: oSla.deadline || Infinity,
 
         isOpen: !bClosed,
-        isInProgress: !!oStatus && oStatus.code === IN_PROGRESS_STATUS_CODE,
+        isInProgress: sStatusCode === IN_PROGRESS_STATUS_CODE,
         // A resolution cannot precede its own creation. Sample data whose
         // completedAt predates the row's managed createdAt would otherwise
         // average out to a negative "Avg Resolution" — report it as unknown
@@ -516,6 +518,17 @@ sap.ui.define([
       return iDiff < 0 ? null : iDiff;
     },
 
+    // Display name for a code, from the LookupValue master data this
+    // controller already indexes.
+    _lookupName: function (sType, sCode) {
+      if (!sCode) { return "—"; }
+      var aEntries = (this._mByType && this._mByType[sType]) || [];
+      for (var i = 0; i < aEntries.length; i++) {
+        if (aEntries[i].code === sCode) { return aEntries[i].name; }
+      }
+      return sCode;
+    },
+
     _isToday: function (vValue) {
       var oDate = new Date(vValue);
       var oToday = new Date();
@@ -536,6 +549,8 @@ sap.ui.define([
         return aItems;
       }
 
+      // Keys are the stored codes (teamCode / userId), which is also what
+      // assignTickets expects since the entity split.
       var aTeams = this._aTeams.map(function (o) { return { key: o.ID, text: o.name }; });
       var aEngineers = this._aUsers
         .filter(function (o) { return o.isActive !== false; })
@@ -1353,8 +1368,11 @@ sap.ui.define([
       this.getOwnerComponent().getRouter().navTo("detail", { id: sId });
     },
 
+    // "Home" is role-dependent: a Service Group user must never be sent to
+    // the end-user dashboard, so the destination comes from the component's
+    // route policy rather than being hard-coded here.
     onGoDashboard: function () {
-      this.getOwnerComponent().getRouter().navTo("dashboard");
+      this.getOwnerComponent().navToHome();
     },
 
     /* =========================================================
@@ -1368,23 +1386,27 @@ sap.ui.define([
       return isNaN(oDate.getTime()) ? "" : oDate.toLocaleString();
     },
 
-    formatStatusState: function (sName) {
-      switch (sName) {
-        case "New": return "Information";
-        case "In Process": return "Warning";
-        case "Customer Action": return "Error";
-        case "Solution Proposed": return "Warning";
-        case "Confirmed": return "Success";
-        case "Closed": return "Success";
+    // Receives the status CODE now (the column is no longer an association).
+    formatStatusState: function (sCode) {
+      switch (sCode) {
+        case "DRAFT": return "None";
+        case "SUBMITTED": return "Information";
+        case "NEW": return "Information";
+        case "IN_PROCESS": return "Warning";
+        case "CUSTOMER_ACTION": return "Error";
+        case "SOLUTION_PROPOSED": return "Warning";
+        case "CONFIRMED": return "Success";
+        case "CLOSED": return "Success";
         default: return "None";
       }
     },
 
-    formatPriorityState: function (sName) {
-      if (!sName) { return "None"; }
-      if (sName.indexOf("P1") === 0) { return "Error"; }
-      if (sName.indexOf("P2") === 0) { return "Warning"; }
-      if (sName.indexOf("P3") === 0) { return "Information"; }
+    // Receives the priority CODE now (P1..P4).
+    formatPriorityState: function (sCode) {
+      if (!sCode) { return "None"; }
+      if (sCode.indexOf("P1") === 0) { return "Error"; }
+      if (sCode.indexOf("P2") === 0) { return "Warning"; }
+      if (sCode.indexOf("P3") === 0) { return "Information"; }
       return "None";
     },
 

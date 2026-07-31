@@ -3,8 +3,9 @@ sap.ui.define([
   "sap/ui/model/json/JSONModel",
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
-  "itsm/ui/util/UserMenu"
-], function (Controller, JSONModel, Filter, FilterOperator, UserMenu) {
+  "itsm/ui/util/UserMenu",
+  "itsm/ui/util/Lookups"
+], function (Controller, JSONModel, Filter, FilterOperator, UserMenu, Lookups) {
   "use strict";
  
   // Trend line colors: blue for incoming (created), green for done
@@ -76,7 +77,7 @@ sap.ui.define([
       var that = this;
       var oModel = this.getOwnerComponent().getModel();
       var oIncB = oModel.bindList("/Tickets", null, [], [], {
-        $select: "ID,createdAt,completedAt"
+        $select: "ticketID,createdAt,completedAt"
       });
  
       oIncB.requestContexts(0, 9999).then(function (aContexts) {
@@ -132,7 +133,7 @@ sap.ui.define([
       ], { $select: "ID,code" });
  
       var oIncB = oModel.bindList("/Tickets", null, [], [], {
-        $select: "ID,ticketNumber,shortDescription,status_ID,priority_ID,messageProcessor_ID,createdAt,firstResponseAt,completedAt"
+        $select: "ticketID,ticketNumber,shortDescription,status,priority,messageProcessor,createdAt,firstResponseAt,completedAt"
       });
  
       Promise.all([
@@ -176,13 +177,12 @@ sap.ui.define([
         var mMetricWeek = { unassigned: { thisWeek: 0, lastWeek: 0 }, breached: { thisWeek: 0, lastWeek: 0 }, atRisk: { thisWeek: 0, lastWeek: 0 } };
  
         aInc.forEach(function (oCtx) {
-          var sStatusId = oCtx.getProperty("status_ID");
-          if (mStatusCode[sStatusId] === "CLOSED") { iClosed++; }
+          if (oCtx.getProperty("status") === "CLOSED") { iClosed++; }
  
           var sCreated = oCtx.getProperty("createdAt");
           var sBucket = weekBucket(sCreated);
  
-          if (!oCtx.getProperty("messageProcessor_ID")) {
+          if (!oCtx.getProperty("messageProcessor")) {
             iUnassigned++;
             bump(mMetricWeek, "unassigned", sBucket);
           }
@@ -198,8 +198,7 @@ sap.ui.define([
             if (iOldestOpenAge === null || iAge > iOldestOpenAge) { iOldestOpenAge = iAge; }
           }
  
-          var sPriId = oCtx.getProperty("priority_ID");
-          var sCode = sPriId && mPriCode[sPriId];
+          var sCode = oCtx.getProperty("priority");
           if (sCode && mByPriority[sCode]) {
             var sFirstResponse = oCtx.getProperty("firstResponseAt");
             var oResult = that._computeSlaDetail(sCode, sCreated, sFirstResponse, sCompleted);
@@ -213,7 +212,7 @@ sap.ui.define([
             if (!sCompleted && oResult.state === "Warning") {
               bump(mMetricWeek, "atRisk", sBucket);
               aAtRisk.push({
-                ID: oCtx.getProperty("ID"),
+                ID: oCtx.getProperty("ticketID"),
                 ticketNumber: oCtx.getProperty("ticketNumber"),
                 shortDescription: oCtx.getProperty("shortDescription"),
                 priority: sCode,
@@ -321,8 +320,11 @@ sap.ui.define([
       oBtn.setTooltip(this._bTilesCollapsed ? "Expand" : "Collapse");
     },
  
+    // "Home" is role-dependent: a Service Group user must never be sent to
+    // the end-user dashboard, so the destination comes from the component's
+    // route policy rather than being hard-coded here.
     onGoDashboard: function () {
-      this.getOwnerComponent().getRouter().navTo("dashboard");
+      this.getOwnerComponent().navToHome();
     },
 
     onProfilePress: function (oEvent) {
@@ -333,14 +335,14 @@ sap.ui.define([
       var oItem = oEvent.getParameter("listItem") || oEvent.getSource();
       var oCtx = oItem.getBindingContext();
       if (oCtx) {
-        this.getOwnerComponent().getRouter().navTo("detail", { id: oCtx.getProperty("ID") });
+        this.getOwnerComponent().getRouter().navTo("detail", { id: oCtx.getProperty("ticketID") });
       }
     },
  
     onAtRiskPress: function (oEvent) {
       var oCtx = oEvent.getSource().getBindingContext("an");
       if (oCtx) {
-        this.getOwnerComponent().getRouter().navTo("detail", { id: oCtx.getProperty("ID") });
+        this.getOwnerComponent().getRouter().navTo("detail", { id: oCtx.getProperty("ticketID") });
       }
     },
  
@@ -351,25 +353,41 @@ sap.ui.define([
       return isNaN(oDate.getTime()) ? "" : oDate.toLocaleString();
     },
  
-    formatStatusState: function (sName) {
-      switch (sName) {
-        case "New": return "Information";
-        case "In Process": return "Warning";
-        case "Customer Action": return "Error";
-        case "Solution Proposed": return "Warning";
-        case "Confirmed": return "Success";
-        case "Closed": return "Success";
+    // Receives the status CODE now (the column is no longer an association).
+    formatStatusState: function (sCode) {
+      switch (sCode) {
+        case "DRAFT": return "None";
+        case "SUBMITTED": return "Information";
+        case "NEW": return "Information";
+        case "IN_PROCESS": return "Warning";
+        case "CUSTOMER_ACTION": return "Error";
+        case "SOLUTION_PROPOSED": return "Warning";
+        case "CONFIRMED": return "Success";
+        case "CLOSED": return "Success";
         default: return "None";
       }
     },
  
-    formatPriorityState: function (sName) {
-      if (!sName) { return "None"; }
-      if (sName.indexOf("P1") === 0) { return "Error"; }
-      if (sName.indexOf("P2") === 0) { return "Warning"; }
-      if (sName.indexOf("P3") === 0) { return "Information"; }
+    // Receives the priority CODE now (P1..P4).
+    formatPriorityState: function (sCode) {
+      if (!sCode) { return "None"; }
+      if (sCode.indexOf("P1") === 0) { return "Error"; }
+      if (sCode.indexOf("P2") === 0) { return "Warning"; }
+      if (sCode.indexOf("P3") === 0) { return "Information"; }
       return "None";
     },
+    /* ---------------------------------------------------------
+     * Code -> display name. Since the entity split, status,
+     * priority, impact and urgency are plain codes on the ticket
+     * rather than associations, so there is no {status/name} to
+     * bind. These resolve the same text from the LookupValue
+     * master data (loaded once in Component.init).
+     * ------------------------------------------------------- */
+    formatStatusName: function (sCode) { return Lookups.name("STATUS", sCode); },
+    formatPriorityName: function (sCode) { return Lookups.name("PRIORITY", sCode); },
+    formatImpactName: function (sCode) { return Lookups.name("IMPACT", sCode); },
+    formatUrgencyName: function (sCode) { return Lookups.name("URGENCY", sCode); },
+
  
     formatSlaState: function (sPriorityCode, sCreatedAt, sFirstResponseAt, sCompletedAt) {
       return this._computeSlaDetail(sPriorityCode, sCreatedAt, sFirstResponseAt, sCompletedAt).state;

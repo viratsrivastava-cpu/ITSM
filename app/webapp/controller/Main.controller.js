@@ -6,8 +6,9 @@ sap.ui.define([
   "sap/ui/model/Sorter",
   "sap/m/MessageToast",
   "sap/m/MessageBox",
-  "itsm/ui/util/UserMenu"
-], function (Controller, JSONModel, Filter, FilterOperator, Sorter, MessageToast, MessageBox, UserMenu) {
+  "itsm/ui/util/UserMenu",
+  "itsm/ui/util/Lookups"
+], function (Controller, JSONModel, Filter, FilterOperator, Sorter, MessageToast, MessageBox, UserMenu, Lookups) {
   "use strict";
 
   // Root of the category tree. Everything below it is discovered via parent_ID,
@@ -40,6 +41,28 @@ sap.ui.define([
     irtStatus: "IRT Status", mptStatus: "MPT Status"
   };
 
+
+  // The incident-specific half of a ticket. Since the entity split these
+  // live on IncidentForm, a separate entity reached through the
+  // `incidentForm` composition. They are edited through a plain JSON model
+  // rather than bound to `incidentForm/...` on the OData context, because
+  // a brand-new ticket has no form row yet — there would be nothing for
+  // those bindings to resolve against until after the first save.
+  var FORM_FIELDS = [
+    "description", "category1", "category2", "category3", "category4",
+    "solutionCategory", "impact", "urgency", "recommendedPriority",
+    "language", "isStandard", "system_ID", "softwareComponent_ID",
+    "softwareVersion", "supportPackage", "configurationItem_ID",
+    "relatedRFC", "irtStatus", "mptStatus"
+  ];
+
+  function emptyForm() {
+    var o = {};
+    FORM_FIELDS.forEach(function (f) { o[f] = null; });
+    o.isStandard = false;
+    return o;
+  }
+
   return Controller.extend("itsm.ui.controller.Main", {
 
     /* ---------------------------------------------------------
@@ -54,6 +77,9 @@ sap.ui.define([
 
       // Drives header buttons and form editability by mode.
       this.getView().setModel(new JSONModel({}), "ui");
+
+      // The IncidentForm half of the ticket (see FORM_FIELDS above).
+      this.getView().setModel(new JSONModel(emptyForm()), "form");
 
       // The form is shared by two routes: "create" (new draft) and
       // "detail" (view an existing ticket). The view is cached and reused, so
@@ -132,6 +158,7 @@ sap.ui.define([
       this._resetPendingAttachments();
       this.getView().getModel("hist").setProperty("/list", []);
       this.getView().getModel("ui").setProperty("/ticketNumberPreview", null);
+      this.getView().getModel("form").setData(emptyForm());
       this._createNewTicket();
       this._setMode("create");
       this._setupCategories();
@@ -182,7 +209,7 @@ sap.ui.define([
         "/TicketHistory",
         null,
         [new Sorter("createdAt", true)],
-        [new Filter("ticket_ID", FilterOperator.EQ, sId)],
+        [new Filter("ticket_ticketID", FilterOperator.EQ, sId)],
         { $expand: "changedBy($select=name)" }
       );
 
@@ -245,9 +272,16 @@ sap.ui.define([
       this.onGoDashboard();
     },
 
+    // "Home" is role-dependent: a Service Group user must never be sent to
+    // the end-user dashboard, so the destination comes from the component's
+    // route policy rather than being hard-coded here.
     onGoDashboard: function () {
-      this.getOwnerComponent().getRouter().navTo("dashboard");
+      this.getOwnerComponent().navToHome();
     },
+
+    // The view shows the recommended priority as a name; the column holds
+    // the code since the entity split.
+    formatPriorityName: function (sCode) { return Lookups.name("PRIORITY", sCode); },
 
     onProfilePress: function (oEvent) {
       UserMenu.open(oEvent.getSource(), this.getOwnerComponent());
@@ -281,14 +315,36 @@ sap.ui.define([
 
     // A plain row addressed by its key — no draft variant to disambiguate.
     _bindExistingTicket: function (sId) {
+      var that = this;
       var oModel = this.getOwnerComponent().getModel();
+      // No manual $expand here: the model runs with autoExpandSelect, which
+      // builds its own $expand/$select and rejects a hand-written one. The
+      // form is fetched as its own request instead.
       var oCtx = oModel.bindContext(
-        "/Tickets(" + sId + ")",
+        "/Tickets('" + sId + "')",
         null,
         { $$updateGroupId: "itsmGroup" }
       ).getBoundContext();
       this._oTicketContext = oCtx;
       this.getView().setBindingContext(oCtx);
+
+      // Copy the form half into its own model so the fields bound to
+      // form>/... show the stored values.
+      this.getView().getModel("form").setData(emptyForm());
+      this._sFormId = null;
+
+      oModel.bindList("/IncidentForms", null, [], [
+        new Filter("ticket_ticketID", FilterOperator.EQ, sId)
+      ]).requestContexts(0, 1).then(function (aCtx) {
+        if (!aCtx.length) { return; }
+        var oForm = aCtx[0].getObject();
+        that._sFormId = oForm.ID;
+        var oData = emptyForm();
+        FORM_FIELDS.forEach(function (f) {
+          if (oForm[f] !== undefined) { oData[f] = oForm[f]; }
+        });
+        that.getView().getModel("form").setData(oData);
+      }).catch(function () { that._sFormId = null; });
     },
 
     /* ---------------------------------------------------------
@@ -353,7 +409,10 @@ sap.ui.define([
 
       var aFilters = [new Filter("isActive", FilterOperator.EQ, true)];
       if (sParentId) {
-        aFilters.push(new Filter("parent_ID", FilterOperator.EQ, sParentId));
+        // The selected value is the parent's NAME now (categories store
+        // names since the entity split), so the tree is walked through the
+        // association rather than by id.
+        aFilters.push(new Filter("parent/name", FilterOperator.EQ, sParentId));
       } else {
         aFilters.push(new Filter("lookupType", FilterOperator.EQ, CAT_ROOT_TYPE));
       }
@@ -412,16 +471,15 @@ sap.ui.define([
       }
     },
 
+    // Categories moved to IncidentForm in the entity split and store the
+    // category NAME, not a LookupValue id — so the cascade reads and writes
+    // the "form" model rather than the ticket context.
     _setCategoryValue: function (iLevel, sValue) {
-      if (this._oTicketContext) {
-        this._oTicketContext.setProperty("category" + (iLevel + 1) + "_ID", sValue);
-      }
+      this.getView().getModel("form").setProperty("/category" + (iLevel + 1), sValue);
     },
 
     _getCategoryValue: function (iLevel) {
-      return this._oTicketContext
-        ? this._oTicketContext.getProperty("category" + (iLevel + 1) + "_ID")
-        : null;
+      return this.getView().getModel("form").getProperty("/category" + (iLevel + 1));
     },
 
     /**
@@ -485,14 +543,7 @@ sap.ui.define([
       // Status is deliberately not set here — before('CREATE') forces DRAFT
       // server-side, so the client cannot put a new ticket anywhere else.
       this._oTicketContext = oListBinding.create({
-        impact_ID: null,
-        urgency_ID: null,
-        priority_ID: null,
-        category1_ID: null,
-        category2_ID: null,
-        category3_ID: null,
-        category4_ID: null,
-        solutionCategory_ID: null
+        priority: null
       }, true /* bSkipRefresh */);
 
       // Bind the whole page to this transient context
@@ -526,6 +577,13 @@ sap.ui.define([
       }
 
       var bCreating = this._sMode === "create";
+      var oForm = this.getView().getModel("form").getData();
+
+      // The form half travels with the ticket as a deep insert on create,
+      // and as its own PATCH on edit — one round-trip either way.
+      if (bCreating) {
+        this._oTicketContext.setProperty("incidentForm", oForm);
+      }
 
       // Plain CRUD. In create mode the queued transient context becomes one
       // POST; in edit mode the changed fields become one PATCH. Either way
@@ -536,6 +594,17 @@ sap.ui.define([
         return that._oTicketContext.created
           ? that._oTicketContext.created()
           : Promise.resolve();
+      }).then(function () {
+        // On edit the form is a separate row, so it needs its own update.
+        if (bCreating || !that._sFormId) { return Promise.resolve(); }
+        return oModel.bindContext("/IncidentForms(" + that._sFormId + ")", null,
+          { $$updateGroupId: "$auto" }).getBoundContext().requestObject().then(function () {
+            var oCtx = oModel.bindContext("/IncidentForms(" + that._sFormId + ")", null,
+              { $$updateGroupId: "$auto" }).getBoundContext();
+            return Promise.all(FORM_FIELDS.map(function (f) {
+              return oCtx.setProperty(f, oForm[f], "$auto");
+            }));
+          });
       }).then(function () {
         // Attachments are a composition, so they can only be posted once
         // the parent has a real key.
@@ -571,21 +640,16 @@ sap.ui.define([
       // requestProperty, not getProperty: on a freshly bound detail context
       // the data has not arrived yet, so getProperty returns undefined and
       // every DRAFT ticket would silently fall through to read-only "view"
-      // with no Submit button.
-      Promise.all([
-        this._requestDraftStatusId(),
-        oCtx.requestProperty("status_ID")
-      ]).then(function (aResult) {
-        var sDraftId = aResult[0];
-        that._setMode(sDraftId && aResult[1] === sDraftId ? "draftSaved" : "view");
+      // with no Submit button. status is the code itself now, so no
+      // LookupValue round-trip is needed to compare it.
+      oCtx.requestProperty("status").then(function (sStatus) {
+        that._setMode(sStatus === "DRAFT" ? "draftSaved" : "view");
       }).catch(function () {
         /* leave whatever mode was already set */
       });
     },
 
-    _requestDraftStatusId: function () {
-      return this._requestStatusId("DRAFT").catch(function () { return null; });
-    },
+
 
     /* ---------------------------------------------------------
      * SUBMIT — same as save but also validates required fields
@@ -596,10 +660,11 @@ sap.ui.define([
 
       var aMissing = [];
       if (!oData.shortDescription)  aMissing.push("Short Description");
-      if (!oData.impact_ID)         aMissing.push("Impact");
-      if (!oData.urgency_ID)        aMissing.push("Urgency");
-      if (!oData.priority_ID)       aMissing.push("Final Priority");
-      if (!oData.description)       aMissing.push("Full Description");
+      var oForm = this.getView().getModel("form").getData();
+      if (!oForm.impact)            aMissing.push("Impact");
+      if (!oForm.urgency)           aMissing.push("Urgency");
+      if (!oData.priority)          aMissing.push("Final Priority");
+      if (!oForm.description)       aMissing.push("Full Description");
 
       if (aMissing.length) {
         MessageBox.warning("Please fill in: " + aMissing.join(", "));
@@ -612,15 +677,14 @@ sap.ui.define([
       // second code path that could drift from an ordinary edit.
       var sNumber = this._oTicketContext.getProperty("ticketNumber");
 
-      this._requestStatusId("SUBMITTED").then(function (sSubmittedId) {
-        if (!sSubmittedId) { throw new Error("No SUBMITTED status is configured."); }
-        // Third argument is the group id: the context's own group is the
-        // deferred "itsmGroup", whose promise would not settle until
-        // something submitted that batch. "$auto" sends it immediately.
-        return that._oTicketContext.setProperty("status_ID", sSubmittedId, "$auto");
-      }).then(function () {
+      // status holds the code itself now, so there is nothing to resolve.
+      // Third argument is the group id: the context's own group is the
+      // deferred "itsmGroup", whose promise would not settle until
+      // something submitted that batch. "$auto" sends it immediately.
+      this._oTicketContext.setProperty("status", "SUBMITTED", "$auto")
+      .then(function () {
         MessageToast.show("Ticket " + sNumber + " submitted.");
-        that.getOwnerComponent().getRouter().navTo("dashboard");
+        that.getOwnerComponent().navToHome();
       }).catch(function (err) {
         MessageBox.error("Submit failed: " + (err.message || err));
       });

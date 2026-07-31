@@ -26,9 +26,9 @@
 
     <Bar class="appHeader">
       <contentLeft>
-        <Button icon="sap-icon://nav-back" type="Transparent"
-                tooltip="Back to Service Desk dashboard" press=".onGoDashboard"
-                class="sapUiTinyMarginEnd"/>
+        <!-- No back button: this dashboard IS the Service Group home, and
+             the page it used to return to is the end-user dashboard, which
+             a coordinator must never see. The logo goes home instead. -->
         <Image src="images/ccentrik.png" height="30px" densityAware="false" class="appLogo" press=".onGoDashboard"/>
       </contentLeft>
       <contentMiddle>

@@ -48,17 +48,17 @@ async function onAssignTickets(req) {
         return req.reject(400, 'Choose an engineer, an assignment group, or both.');
     }
 
-    // Association targets are not FK-checked on this path, so verify them
-    // here — otherwise a hand-rolled request could park every ticket on an
-    // engineer or group that does not exist, and nothing would complain
-    // until someone tried to read the assignment back.
+    // These are plain code columns since the entity split, so nothing
+    // enforces that they point at a real user or team — check here, or a
+    // hand-rolled request could park tickets on an engineer that does not
+    // exist and nothing would complain until someone read it back.
     const { User, SupportTeam } = cds.entities('itsm.master');
     if (messageProcessor != null) {
-        const found = await SELECT.one.from(User).columns('ID').where({ ID: messageProcessor });
+        const found = await SELECT.one.from(User).columns('userId').where({ userId: messageProcessor });
         if (!found) return req.reject(400, `No such engineer: ${messageProcessor}`);
     }
     if (supportTeam != null) {
-        const found = await SELECT.one.from(SupportTeam).columns('ID').where({ ID: supportTeam });
+        const found = await SELECT.one.from(SupportTeam).columns('teamCode').where({ teamCode: supportTeam });
         if (!found) return req.reject(400, `No such assignment group: ${supportTeam}`);
     }
 
@@ -68,14 +68,14 @@ async function onAssignTickets(req) {
     const { Ticket, TicketHistory } = cds.entities('itsm.txn');
 
     const before = await SELECT.from(Ticket)
-        .columns('ID', 'messageProcessor_ID', 'supportTeam_ID')
-        .where({ ID: { in: tickets } });
+        .columns('ticketID', 'messageProcessor', 'supportTeam')
+        .where({ ticketID: { in: tickets } });
 
     if (before.length === 0) return 0;
 
     const next = {};
-    if (messageProcessor != null) next.messageProcessor_ID = messageProcessor;
-    if (supportTeam != null) next.supportTeam_ID = supportTeam;
+    if (messageProcessor != null) next.messageProcessor = messageProcessor;
+    if (supportTeam != null) next.supportTeam = supportTeam;
 
     // Only tickets whose values actually differ — so a bulk assign that
     // re-picks the engineer some rows already have doesn't fill the audit
@@ -86,21 +86,20 @@ async function onAssignTickets(req) {
 
     if (changed.length === 0) return 0;
 
-    const changedIds = changed.map((row) => row.ID);
-    await UPDATE(Ticket).set(next).where({ ID: { in: changedIds } });
+    const changedIds = changed.map((row) => row.ticketID);
+    await UPDATE(Ticket).set(next).where({ ticketID: { in: changedIds } });
 
     const changedById = await resolveCurrentUserId(req);
     const rows = [];
     for (const row of changed) {
         for (const [field, historyName] of Object.entries(ASSIGNABLE)) {
-            const key = `${field}_ID`;
-            if (!(key in next)) continue;
-            if (String(row[key] ?? '') === String(next[key] ?? '')) continue;
+            if (!(field in next)) continue;
+            if (String(row[field] ?? '') === String(next[field] ?? '')) continue;
             rows.push({
-                ticket_ID: row.ID,
+                ticket_ticketID: row.ticketID,
                 fieldName: historyName,
-                oldValue: row[key] == null ? null : String(row[key]),
-                newValue: next[key] == null ? null : String(next[key]),
+                oldValue: row[field] == null ? null : String(row[field]),
+                newValue: next[field] == null ? null : String(next[field]),
                 changedBy_ID: changedById
             });
         }

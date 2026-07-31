@@ -65,36 +65,36 @@
               <Input value="{parts: ['ticketNumber', 'ui>/ticketNumberPreview'], formatter: '.formatTicketNumberDisplay'}" editable="false" placeholder="Auto-generated"/>
 
               <Label text="Ticket Type"/>
-              <Select selectedKey="{ticketType_ID}" forceSelection="false" enabled="{ui>/formEditable}"
+              <Select selectedKey="{ticketType}" forceSelection="false" enabled="{ui>/formEditable}"
                       items="{ path: '/LookupValues', sorter: [{ path: 'sequence' }], filters: [{ path: 'lookupType', operator: 'EQ', value1: 'TICKET_TYPE' }, { path: 'isActive', operator: 'EQ', value1: true }] }">
-                <core:Item key="{ID}" text="{name}"/>
+                <core:Item key="{code}" text="{name}"/>
               </Select>
 
               <Label text="Language"/>
-              <Select selectedKey="{language_ID}" forceSelection="false" enabled="{ui>/formEditable}"
+              <Select selectedKey="{form>/language}" forceSelection="false" enabled="{ui>/formEditable}"
                       items="{ path: '/LookupValues', sorter: [{ path: 'sequence' }], filters: [{ path: 'lookupType', operator: 'EQ', value1: 'LANGUAGE' }, { path: 'isActive', operator: 'EQ', value1: true }] }">
-                <core:Item key="{ID}" text="{name}"/>
+                <core:Item key="{code}" text="{name}"/>
               </Select>
 
               <Label text="Standard Ticket"/>
-              <CheckBox selected="{isStandard}" enabled="{ui>/formEditable}"/>
+              <CheckBox selected="{form>/isStandard}" enabled="{ui>/formEditable}"/>
  
               <Label text="Reported By"/>
-              <Select selectedKey="{reportedBy_ID}" forceSelection="false" enabled="{ui>/formEditable}"
+              <Select selectedKey="{reportedBy}" forceSelection="false" enabled="{ui>/formEditable}"
                       items="{ path: '/Users', sorter: [{ path: 'name' }], filters: [{ path: 'isActive', operator: 'EQ', value1: true }] }">
-                <core:Item key="{ID}" text="{name}"/>
+                <core:Item key="{userId}" text="{name}"/>
               </Select>
  
               <Label text="Support Team"/>
-              <Select selectedKey="{supportTeam_ID}" forceSelection="false" enabled="{ui>/formEditable}"
+              <Select selectedKey="{supportTeam}" forceSelection="false" enabled="{ui>/formEditable}"
                       items="{ path: '/SupportTeams', sorter: [{ path: 'name' }], filters: [{ path: 'isActive', operator: 'EQ', value1: true }] }">
-                <core:Item key="{ID}" text="{name}"/>
+                <core:Item key="{teamCode}" text="{name}"/>
               </Select>
  
               <Label text="Message Processor"/>
-              <Select selectedKey="{messageProcessor_ID}" forceSelection="false" enabled="{ui>/formEditable}"
+              <Select selectedKey="{messageProcessor}" forceSelection="false" enabled="{ui>/formEditable}"
                       items="{ path: '/Users', sorter: [{ path: 'name' }], filters: [{ path: 'isActive', operator: 'EQ', value1: true }] }">
-                <core:Item key="{ID}" text="{name}"/>
+                <core:Item key="{userId}" text="{name}"/>
               </Select>
  
             </f:SimpleForm>
@@ -113,7 +113,7 @@
                    from the children of the level above, so depth and content
                    come purely from master data. -->
               <Label text="Category 1"/>
-              <Select id="selCategory1" selectedKey="{category1_ID}"
+              <Select id="selCategory1" selectedKey="{form>/category1}"
                       items="{cat>/levels/0/items}"
                       enabled="{cat>/levels/0/enabled}"
                       busy="{cat>/levels/0/busy}"
@@ -121,12 +121,12 @@
                       forceSelection="false"
                       width="100%"
                       change=".onCategoryChange">
-                <core:Item key="{cat>ID}" text="{cat>name}"/>
+                <core:Item key="{cat>name}" text="{cat>name}"/>
               </Select>
               <Text text="No subcategories available" visible="{cat>/levels/0/noChildren}" class="noSubText"/>
  
               <Label text="Category 2"/>
-              <Select id="selCategory2" selectedKey="{category2_ID}"
+              <Select id="selCategory2" selectedKey="{form>/category2}"
                       items="{cat>/levels/1/items}"
                       enabled="{cat>/levels/1/enabled}"
                       busy="{cat>/levels/1/busy}"
@@ -134,12 +134,12 @@
                       forceSelection="false"
                       width="100%"
                       change=".onCategoryChange">
-                <core:Item key="{cat>ID}" text="{cat>name}"/>
+                <core:Item key="{cat>name}" text="{cat>name}"/>
               </Select>
               <Text text="No subcategories available" visible="{cat>/levels/1/noChildren}" class="noSubText"/>
  
               <Label text="Category 3"/>
-              <Select id="selCategory3" selectedKey="{category3_ID}"
+              <Select id="selCategory3" selectedKey="{form>/category3}"
                       items="{cat>/levels/2/items}"
                       enabled="{cat>/levels/2/enabled}"
                       busy="{cat>/levels/2/busy}"
@@ -147,12 +147,12 @@
                       forceSelection="false"
                       width="100%"
                       change=".onCategoryChange">
-                <core:Item key="{cat>ID}" text="{cat>name}"/>
+                <core:Item key="{cat>name}" text="{cat>name}"/>
               </Select>
               <Text text="No subcategories available" visible="{cat>/levels/2/noChildren}" class="noSubText"/>
  
               <Label text="Category 4"/>
-              <Select id="selCategory4" selectedKey="{category4_ID}"
+              <Select id="selCategory4" selectedKey="{form>/category4}"
                       items="{cat>/levels/3/items}"
                       enabled="{cat>/levels/3/enabled}"
                       busy="{cat>/levels/3/busy}"
@@ -160,14 +160,14 @@
                       forceSelection="false"
                       width="100%"
                       change=".onCategoryChange">
-                <core:Item key="{cat>ID}" text="{cat>name}"/>
+                <core:Item key="{cat>name}" text="{cat>name}"/>
               </Select>
               <Text text="No subcategories available" visible="{cat>/levels/3/noChildren}" class="noSubText"/>
  
               <Label text="Solution Category"/>
-              <Select selectedKey="{solutionCategory_ID}"
+              <Select selectedKey="{form>/solutionCategory}"
                       items="{ path: '/LookupValues', sorter: [{ path: 'sequence' }], filters: [{ path: 'lookupType', operator: 'EQ', value1: 'SOLUTION_CATEGORY' }, { path: 'isActive', operator: 'EQ', value1: true }] }">
-                <core:Item key="{ID}" text="{name}"/>
+                <core:Item key="{code}" text="{name}"/>
               </Select>
  
             </f:SimpleForm>
@@ -178,42 +178,42 @@
             <f:SimpleForm editable="{ui>/formEditable}" layout="ColumnLayout" columnsM="2" columnsL="2" columnsXL="2">
  
               <Label text="Status"/>
-              <ComboBox selectedKey="{status_ID}" enabled="{ui>/formEditable}"
+              <ComboBox selectedKey="{status}" enabled="{ui>/formEditable}"
                         items="{ path: '/LookupValues', sorter: [{ path: 'sequence' }], filters: [{ path: 'lookupType', operator: 'EQ', value1: 'STATUS' }, { path: 'isActive', operator: 'EQ', value1: true }] }">
-                <core:Item key="{ID}" text="{name}"/>
+                <core:Item key="{code}" text="{name}"/>
               </ComboBox>
  
               <Label text="Impact" required="true"/>
-              <ComboBox selectedKey="{impact_ID}" enabled="{ui>/formEditable}"
+              <ComboBox selectedKey="{form>/impact}" enabled="{ui>/formEditable}"
                         items="{ path: '/LookupValues', sorter: [{ path: 'sequence' }], filters: [{ path: 'lookupType', operator: 'EQ', value1: 'IMPACT' }, { path: 'isActive', operator: 'EQ', value1: true }] }">
-                <core:Item key="{ID}" text="{name}"/>
+                <core:Item key="{code}" text="{name}"/>
               </ComboBox>
  
               <Label text="Urgency" required="true"/>
-              <ComboBox selectedKey="{urgency_ID}" enabled="{ui>/formEditable}"
+              <ComboBox selectedKey="{form>/urgency}" enabled="{ui>/formEditable}"
                         items="{ path: '/LookupValues', sorter: [{ path: 'sequence' }], filters: [{ path: 'lookupType', operator: 'EQ', value1: 'URGENCY' }, { path: 'isActive', operator: 'EQ', value1: true }] }">
-                <core:Item key="{ID}" text="{name}"/>
+                <core:Item key="{code}" text="{name}"/>
               </ComboBox>
  
               <Label text="Recommended Priority"/>
-              <Input value="{recommendedPriority/name}" editable="false" placeholder="Auto-suggested"/>
+              <Input value="{path: 'form>/recommendedPriority', formatter: '.formatPriorityName'}" editable="false" placeholder="Auto-suggested"/>
  
               <Label text="Priority" required="true"/>
-              <ComboBox selectedKey="{priority_ID}" enabled="{ui>/formEditable}"
+              <ComboBox selectedKey="{priority}" enabled="{ui>/formEditable}"
                         items="{ path: '/LookupValues', sorter: [{ path: 'sequence' }], filters: [{ path: 'lookupType', operator: 'EQ', value1: 'PRIORITY' }, { path: 'isActive', operator: 'EQ', value1: true }] }">
-                <core:Item key="{ID}" text="{name}"/>
+                <core:Item key="{code}" text="{name}"/>
               </ComboBox>
  
               <Label text="IRT Status"/>
-              <Select selectedKey="{irtStatus_ID}" forceSelection="false" enabled="{ui>/formEditable}"
+              <Select selectedKey="{form>/irtStatus}" forceSelection="false" enabled="{ui>/formEditable}"
                       items="{ path: '/LookupValues', sorter: [{ path: 'sequence' }], filters: [{ path: 'lookupType', operator: 'EQ', value1: 'IRT_STATUS' }, { path: 'isActive', operator: 'EQ', value1: true }] }">
-                <core:Item key="{ID}" text="{name}"/>
+                <core:Item key="{code}" text="{name}"/>
               </Select>
 
               <Label text="MPT Status"/>
-              <Select selectedKey="{mptStatus_ID}" forceSelection="false" enabled="{ui>/formEditable}"
+              <Select selectedKey="{form>/mptStatus}" forceSelection="false" enabled="{ui>/formEditable}"
                       items="{ path: '/LookupValues', sorter: [{ path: 'sequence' }], filters: [{ path: 'lookupType', operator: 'EQ', value1: 'MPT_STATUS' }, { path: 'isActive', operator: 'EQ', value1: true }] }">
-                <core:Item key="{ID}" text="{name}"/>
+                <core:Item key="{code}" text="{name}"/>
               </Select>
 
               <Label text="SLA"/>
@@ -251,28 +251,28 @@
             <f:SimpleForm editable="{ui>/formEditable}" layout="ColumnLayout" columnsM="2" columnsL="2" columnsXL="2">
  
               <Label text="System"/>
-              <Select selectedKey="{system_ID}" forceSelection="false" enabled="{ui>/formEditable}"
+              <Select selectedKey="{form>/system_ID}" forceSelection="false" enabled="{ui>/formEditable}"
                       items="{ path: '/Systems', parameters: { $orderby: 'name' } }">
                 <core:Item key="{ID}" text="{name}"/>
               </Select>
 
               <Label text="Software Component"/>
-              <Select selectedKey="{softwareComponent_ID}" forceSelection="false" enabled="{ui>/formEditable}"
+              <Select selectedKey="{form>/softwareComponent_ID}" forceSelection="false" enabled="{ui>/formEditable}"
                       items="{ path: '/SoftwareComponents', parameters: { $orderby: 'name' } }">
                 <core:Item key="{ID}" text="{name}"/>
               </Select>
 
               <Label text="Software Version"/>
-              <Input value="{softwareVersion}" editable="{ui>/formEditable}"/>
+              <Input value="{form>/softwareVersion}" editable="{ui>/formEditable}"/>
 
               <Label text="Support Package"/>
-              <Input value="{path: 'supportPackage', type: 'sap.ui.model.type.Integer'}" editable="{ui>/formEditable}"/>
+              <Input value="{path: 'form>/supportPackage', type: 'sap.ui.model.type.Integer'}" editable="{ui>/formEditable}"/>
 
               <Label text="Related RFC"/>
-              <Input value="{relatedRFC}"/>
+              <Input value="{form>/relatedRFC}"/>
  
               <Label text="Configuration Item"/>
-              <Select selectedKey="{configurationItem_ID}" forceSelection="false" enabled="{ui>/formEditable}"
+              <Select selectedKey="{form>/configurationItem_ID}" forceSelection="false" enabled="{ui>/formEditable}"
                       items="{ path: '/ConfigurationItems', parameters: { $orderby: 'name' } }">
                 <core:Item key="{ID}" text="{name}"/>
               </Select>
@@ -288,7 +288,7 @@
             <Label text="Full Description" required="true"/>
             <TextArea rows="10" width="100%" editable="{ui>/formEditable}"
               growing="true" growingMaxLines="25"
-              value="{description}"
+              value="{form>/description}"
               placeholder="Enter detailed technical notes and ticket analysis..."/>
           </Panel>
         </VBox>
