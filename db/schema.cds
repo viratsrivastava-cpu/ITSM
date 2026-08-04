@@ -5,19 +5,9 @@ using { cuid, managed } from '@sap/cds/common';
 
 /*=========================================================
     MASTER DATA CONTEXT
-    Reference data — rarely changes, referenced by transactions
 =========================================================*/
 context master {
 
-    /*---------------------------------------------------------
-        GENERIC LOOKUP TABLE
-        Handles all dropdowns: STATUS, PRIORITY, IMPACT, URGENCY,
-        CATEGORY1..4, SOLUTION_CATEGORY, LANGUAGE, TICKET_TYPE,
-        IRT_STATUS, MPT_STATUS, FUZZY_THRESHOLD, RELEASED_ON,
-        PROCESSING_TYPE, SAP_NOTE_STATUS, TRANSACTION_TYPE,
-        TRANSACTION_STATUS, TRANSACTION_CATEGORY,
-        SCHED_ACTION_STATUS
-    ---------------------------------------------------------*/
     @assert.unique.typeCode: [lookupType, code]
     entity LookupValue : cuid, managed {
         lookupType   : String(50)  @assert.notNull;
@@ -31,60 +21,40 @@ context master {
     }
 
     entity TicketCounter : managed {
-    key prefix     : String(10);
-        lastNumber : Integer default 00001;
-    }   
+        key prefix : String(10);
+        lastNumber : Integer default 1;
+    }
 
-    /*---------------------------------------------------------
-        USERS
-    ---------------------------------------------------------*/
     entity User : cuid, managed {
-        userId    : String(50) @assert.unique;
-        name      : String(100);
-        email     : String(100);
-        isActive  : Boolean default true;
+        userId   : String(50) @assert.unique;
+        name     : String(100);
+        email    : String(100);
+        isActive : Boolean default true;
     }
 
-    /*---------------------------------------------------------
-        SUPPORT TEAMS
-    ---------------------------------------------------------*/
     entity SupportTeam : cuid, managed {
-        teamCode  : String(50) @assert.unique;
-        name      : String(100);
-        isActive  : Boolean default true;
+        teamCode : String(50) @assert.unique;
+        name     : String(100);
+        isActive : Boolean default true;
     }
 
-    /*---------------------------------------------------------
-        SYSTEMS (SAP landscape systems)
-    ---------------------------------------------------------*/
     entity SystemMaster : cuid, managed {
         systemId    : String(50) @assert.unique;
         name        : String(100);
         description : String(255);
     }
 
-    /*---------------------------------------------------------
-        SOFTWARE COMPONENTS
-    ---------------------------------------------------------*/
     entity SoftwareComponent : cuid, managed {
         componentCode : String(50) @assert.unique;
         name          : String(100);
     }
 
-    /*---------------------------------------------------------
-        CONFIGURATION ITEMS (CMDB)
-    ---------------------------------------------------------*/
     entity ConfigurationItem : cuid, managed {
         ciCode      : String(50) @assert.unique;
         name        : String(100);
         description : String(255);
     }
-
-
-
-
 }
-
 
 
 /*=========================================================
@@ -161,12 +131,12 @@ context txn {
         language            : String(50);
         isStandard          : Boolean default false;
 
-        // Master data relationships
-        system              : Association to master.SystemMaster;
-        softwareComponent   : Association to master.SoftwareComponent;
+        // Previously master associations — now plain codes
+        system              : String(50);
+        softwareComponent   : String(50);
         softwareVersion     : String(50);
         supportPackage      : Integer;
-        configurationItem   : Association to master.ConfigurationItem;
+        configurationItem   : String(50);
         relatedRFC          : String(30);
 
         irtStatus           : String(50);
@@ -193,32 +163,29 @@ context txn {
     }
 
     /*---------------------------------------------------------
-        SAP NOTES ATTACHED TO TICKET
+        SAP NOTES ATTACHED TO INCIDENT FORM
     ---------------------------------------------------------*/
     entity TicketSAPNote : cuid, managed {
-        // Back-link to the form, not the ticket: SAP notes are part of the
-        // incident form (see IncidentForm.sapNotes).
         ticketForm    : Association to IncidentForm;
         sapNoteNumber : String(20);
         description   : LargeString;
         details       : LargeString;
-        component     : Association to master.SoftwareComponent;
-        status        : Association to master.LookupValue;   // SAP_NOTE_STATUS
+        component     : String(50);
+        status        : String(50);
     }
 
     /*---------------------------------------------------------
-        SAP NOTE SEARCH CRITERIA (search popup fields)
+        SAP NOTE SEARCH CRITERIA
     ---------------------------------------------------------*/
     entity SAPNoteSearchCriteria : cuid, managed {
-        // Back-link to the form, not the ticket (see IncidentForm.sapNoteSearch).
         ticketForm                : Association to IncidentForm;
         componentsStartWith       : String(100);
         componentsExact           : String(100);
         excludedComponents        : String(100);
         supportPackageGreaterThan : Integer;
         supportPackageEqual       : Integer;
-        fuzzyThreshold            : Association to master.LookupValue;   // FUZZY_THRESHOLD
-        releasedOnPreDefined      : Association to master.LookupValue;   // RELEASED_ON
+        fuzzyThreshold            : String(50);
+        releasedOnPreDefined      : String(50);
         releasedOnFree            : Date;
     }
 
@@ -230,10 +197,10 @@ context txn {
         transactionId   : String(30);
         transaction     : String(30);
         description     : String(255);
-        category        : Association to master.LookupValue;   // TRANSACTION_CATEGORY
-        status          : Association to master.LookupValue;   // TRANSACTION_STATUS
-        priority        : Association to master.LookupValue;   // PRIORITY
-        transactionType : Association to master.LookupValue;   // TRANSACTION_TYPE
+        category        : String(50);
+        status          : String(50);
+        priority        : String(50);
+        transactionType : String(50);
     }
 
     /*---------------------------------------------------------
@@ -242,8 +209,8 @@ context txn {
     entity ScheduledAction : cuid, managed {
         ticket           : Association to Ticket;
         actionDefinition : String(255);
-        processingType   : Association to master.LookupValue;   // PROCESSING_TYPE
-        status           : Association to master.LookupValue;   // SCHED_ACTION_STATUS
+        processingType   : String(50);
+        status           : String(50);
         executable       : Boolean default false;
         scheduledAt      : Timestamp;
     }
@@ -254,7 +221,7 @@ context txn {
     entity TicketComment : cuid, managed {
         ticket  : Association to Ticket;
         comment : LargeString;
-        author  : Association to master.User;
+        author  : String(50);
     }
 
     /*---------------------------------------------------------
@@ -265,6 +232,6 @@ context txn {
         fieldName : String(100);
         oldValue  : LargeString;
         newValue  : LargeString;
-        changedBy : Association to master.User;
+        changedBy : String(50);
     }
 }

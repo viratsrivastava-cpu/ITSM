@@ -1,0 +1,47 @@
+@base = http://localhost:4004/odata/v4/ITSMService
+@auth = Basic amRvZTpqZG9l
+
+POST {{base}}/Tickets
+Authorization: {{auth}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "ticketType": "INCIDENT",
+  "shortDescription": "Laptop does not power on after firmware update",
+  "priority": "P2",
+  "supportTeam": "SD-L1",
+  "messageProcessor": "asmith",
+
+  "incidentForm": {
+    "description": "User reports the laptop is completely unresponsive after last night's firmware update. No LED activity even on mains power. Tried holding power for 30 seconds with no effect.",
+
+    "category1": "Hardware",
+    "category2": "Laptop",
+    "category3": "Not Starting",
+    "category4": "",
+
+    "impact": "HIGH",
+    "urgency": "HIGH",
+    "recommendedPriority": "P2",
+
+    "language": "EN",
+    "isStandard": false,
+
+    "system": {
+      "ID": "f3000000-0000-4000-8000-000000000001"
+    },
+
+    "softwareComponent": {
+      "ID": "f4000000-0000-4000-8000-000000000001"
+    },
+
+    "configurationItem": {
+      "ID": "f5000000-0000-4000-8000-000000000001"
+    },
+
+    "softwareVersion": "7.50",
+    "supportPackage": 12,
+    "relatedRFC": "RFC-000123"
+  }
+}

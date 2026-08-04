@@ -9,7 +9,7 @@ using { itsm.master as master, itsm.txn as txn } from '../db/schema';
     Locally these come from the mocked users in package.json;
     on CF from the XSUAA role templates in xs-security.json.
 =========================================================*/
-@path: '/odata/v4/itsm'
+@path: 'ITSMService'
 @requires: 'authenticated-user'
 service ITSMService {
 
@@ -26,8 +26,9 @@ service ITSMService {
     entity ConfigurationItems  as projection on master.ConfigurationItem;
 
     // Per-prefix ticket number counters. Read-only over the API: the only
-    // thing allowed to move a counter is the atomic bump in handlers/tickets.js,
-    // otherwise two clients could hand out the same ticket number.
+    // thing allowed to move a counter is the atomic bump in
+    // srv/utils/ticket-number.js, otherwise two clients could hand out the
+    // same ticket number.
     @readonly
     entity TicketCounters as projection on master.TicketCounter;
 
@@ -44,36 +45,79 @@ service ITSMService {
         written by this service's own handlers, not something a
         user should be able to add or remove rows from.
     =====================================================*/
-    // Deliberately NOT @odata.draft.enabled — see srv/handlers/tickets.js.
-    // The UI is freestyle SAPUI5, not Fiori Elements, so nothing needs the
-    // draft protocol; without it Create/Save/Submit are plain CREATE and
-    // UPDATE, which is what the lifecycle handlers hook.
-    // Direct POST is refused by a guard in handlers/create-ticket, not by
-    // @Capabilities.InsertRestrictions: that annotation is enforced for
-    // internal srv.run(INSERT) as well, which would block the action's own
-    // insert and force it to bypass the CREATE lifecycle.
-    entity Tickets as projection on txn.Ticket excluding { history };
+    // Deliberately NOT @odata.draft.enabled: nothing needs the draft
+    // protocol, so Create/Save/Submit are plain CREATE and UPDATE — which
+    // is exactly what srv/handlers/ticket.js hooks.
+    entity Tickets as projection on txn.Ticket excluding { history } actions {
 
-    // Exposed in its own right as well as through the composition, so the
-    // form can be read or patched without going through the ticket.
+        /*-------------------------------------------------
+            SUBMIT — the ONLY way a ticket leaves DRAFT.
+
+            A bound action rather than a status PATCH, because
+            the requirement is that no other operation can make
+            the DRAFT -> OPEN transition. on('UPDATE') refuses
+            that move explicitly, so this action is the single
+            door. Everything else about a ticket is still plain
+            CRUD.
+        -------------------------------------------------*/
+        action submitTicket() returns Tickets;
+    };
+
+
+    @Capabilities: {
+        InsertRestrictions.Insertable: false,
+        UpdateRestrictions.Updatable : false,
+        DeleteRestrictions.Deletable : false
+    }
     entity IncidentForms as projection on txn.IncidentForm;
 
-    entity Attachments          as projection on txn.Attachment;
-    entity TicketSAPNotes       as projection on txn.TicketSAPNote;
-    entity SAPNoteSearchCriteria as projection on txn.SAPNoteSearchCriteria;
-    entity TicketTransactions   as projection on txn.TicketTransaction;
-    entity ScheduledActions     as projection on txn.ScheduledAction;
-    entity TicketComments       as projection on txn.TicketComment;
+    @Capabilities: {
+        InsertRestrictions.Insertable: false,
+        UpdateRestrictions.Updatable : false,
+        DeleteRestrictions.Deletable : false
+    }
+    entity Attachments as projection on txn.Attachment;
 
-    // Append-only audit trail: written by server-side handlers on
-    // every Ticket SAVE, never directly writable through the API.
+    @Capabilities: {
+        InsertRestrictions.Insertable: false,
+        UpdateRestrictions.Updatable : false,
+        DeleteRestrictions.Deletable : false
+    }
+    entity TicketSAPNotes as projection on txn.TicketSAPNote;
+
+    @Capabilities: {
+        InsertRestrictions.Insertable: false,
+        UpdateRestrictions.Updatable : false,
+        DeleteRestrictions.Deletable : false
+    }
+    entity SAPNoteSearchCriteria as projection on txn.SAPNoteSearchCriteria;
+
+    @Capabilities: {
+        InsertRestrictions.Insertable: false,
+        UpdateRestrictions.Updatable : false,
+        DeleteRestrictions.Deletable : false
+    }
+    entity TicketTransactions as projection on txn.TicketTransaction;
+
+    @Capabilities: {
+        InsertRestrictions.Insertable: false,
+        UpdateRestrictions.Updatable : false,
+        DeleteRestrictions.Deletable : false
+    }
+    entity ScheduledActions as projection on txn.ScheduledAction;
+
+    @Capabilities: {
+        InsertRestrictions.Insertable: false,
+        UpdateRestrictions.Updatable : false,
+        DeleteRestrictions.Deletable : false
+    }
+    entity TicketComments as projection on txn.TicketComment;
+
+    // Append-only audit trail: written by server-side handlers on every
+    // ticket UPDATE, submit and assignment — never directly writable
+    // through the API.
     @readonly
     entity TicketHistory as projection on txn.TicketHistory;
-
-    // Read-only preview of the next ticket number, for display on the
-    // create form before the ticket is actually saved. The authoritative
-    // number is (re)assigned server-side on SAVE.
-    function nextTicketNumber(ticketTypeCode : String) returns String;
 
     /*=====================================================
         WHO AM I — the authenticated user, joined to their
@@ -83,8 +127,9 @@ service ITSMService {
         matching master.User row: callers must tolerate that
         (it means "no personal queue", not "not logged in").
     =====================================================*/
+
     type CurrentUser {
-        ID             : UUID;
+        ID             : UUID;          // master.User key, null if no such row
         userId         : String(50);
         name           : String(100);
         email          : String(100);
@@ -95,61 +140,14 @@ service ITSMService {
     function currentUser() returns CurrentUser;
 
     /*=====================================================
-        CREATE TICKET — the only way to raise a ticket.
-
-        An ACTION, not a function (it has side effects) and not
-        an event (the caller needs the created ticket back
-        synchronously). Unbound, because there is no instance to
-        bind to yet.
-
-        The point of the explicit parameter types is that they
-        ARE the contract: ticketNumber, ticketID, status,
-        reportedBy and the managed audit fields simply do not
-        exist as inputs, so a client cannot supply or override
-        them — that guarantee is structural, not a convention
-        enforced by handler code.
-    =====================================================*/
-    type NewTicketForm {
-        description         : LargeString;
-        category1           : String(100);
-        category2           : String(100);
-        category3           : String(100);
-        category4           : String(100);
-        impact              : String(50);
-        urgency             : String(50);
-        language            : String(50);
-        isStandard          : Boolean;
-        system              : UUID;
-        softwareComponent   : UUID;
-        softwareVersion     : String(50);
-        supportPackage      : Integer;
-        configurationItem   : UUID;
-        relatedRFC          : String(30);
-    }
-
-    type NewTicket {
-        // Header fields a reporter is allowed to set.
-        ticketType       : String(50);
-        shortDescription : String(255);
-        priority         : String(50);
-        supportTeam      : String(50);
-        messageProcessor : String(50);
-
-        // The incident form, created together with the ticket.
-        form             : NewTicketForm;
-    }
-
-    action createTicket(ticket : NewTicket) returns Tickets;
-
-    /*=====================================================
         SERVICE GROUP: (re)assignment.
         Sets the engineer and/or the support team on tickets
         that are already active. Deliberately an action rather
         than a PATCH: it routes many tickets in one
         transaction with one authorization check, which a
         per-ticket PATCH from the client cannot do. Writes its
-        own TicketHistory rows, since the SAVE-based audit
-        handler never fires for this path.
+        own TicketHistory rows, since it updates the persistence
+        entity directly and the UPDATE hooks never fire for it.
         Returns the number of tickets actually changed.
     =====================================================*/
     @requires: 'ServiceGroup'
