@@ -1,3 +1,3 @@
-ID,ticketForm_ID,sapNoteNumber,description,details,component_ID,status_ID
-d3000000-0000-4000-8000-000000000001,33ed864c-c5bc-4433-bdbf-4d88c8f723d3,3123456,SM59 RFC destination timeout after kernel upgrade,Applies a kernel patch and adjusts the RFC destination timeout parameter to resolve intermittent logon timeouts.,f4000000-0000-4000-8000-000000000001,e8000000-0000-4000-8000-000000000002
-d3000000-0000-4000-8000-000000000002,c438029d-2cc5-431c-9114-857dcabfbe45,3198765,Performance degradation after support package XX,Known issue with a missing secondary index introduced by the support package; note provides the corrective SQL.,f4000000-0000-4000-8000-000000000002,e8000000-0000-4000-8000-000000000001
+ID,ticketForm_ID,sapNoteNumber,description,details,component,status
+d3000000-0000-4000-8000-000000000001,33ed864c-c5bc-4433-bdbf-4d88c8f723d3,3123456,SM59 RFC destination timeout after kernel upgrade,Applies a kernel patch and adjusts the RFC destination timeout parameter to resolve intermittent logon timeouts.,SAP_BASIS,APPLIED
+d3000000-0000-4000-8000-000000000002,c438029d-2cc5-431c-9114-857dcabfbe45,3198765,Performance degradation after support package XX,Known issue with a missing secondary index introduced by the support package; note provides the corrective SQL.,S4CORE,NEW

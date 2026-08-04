@@ -1,6 +1,6 @@
 const cds = require('@sap/cds');
 const { generateTicketNumber } = require('../utils/ticket-number');
-const { currentUserId, resolveUserKey, keyOf } = require('../utils/user');
+const { currentUserId, keyOf } = require('../utils/user');
 const { captureAggregate, logAggregateChanges, logField } = require('../utils/history');
 
 const STATUS_DRAFT = 'DRAFT';
@@ -23,9 +23,9 @@ async function beforeCreateTicket(req) {
     data.reportedBy = currentUserId(req);
 
     if (Array.isArray(data.comments) && data.comments.length) {       // optional as we havent made comment section right now
-        const authorKey = await resolveUserKey(req);
+        const author = currentUserId(req);
         for (const comment of data.comments) {
-            if (!comment.author_ID) comment.author_ID = authorKey;
+            if (!comment.author) comment.author = author;
         }
     }
 }
@@ -46,9 +46,9 @@ async function onUpdateTicket(req, next) {
     }
 
     if (Array.isArray(data.comments) && data.comments.length) {
-        const authorKey = await resolveUserKey(req);
+        const author = currentUserId(req);
         for (const comment of data.comments) {
-            if (!comment.author_ID) comment.author_ID = authorKey;
+            if (!comment.author) comment.author = author;
         }
     }
 

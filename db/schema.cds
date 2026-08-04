@@ -5,7 +5,7 @@ using { cuid, managed } from '@sap/cds/common';
 
 /*=========================================================
     MASTER DATA CONTEXT
-=========================================================*/
+=========================================================*/ 
 context master {
 
     @assert.unique.typeCode: [lookupType, code]

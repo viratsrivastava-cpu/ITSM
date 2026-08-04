@@ -1,5 +1,5 @@
-ID,ticket_ticketID,comment,author_ID
-d7000000-0000-4000-8000-000000000001,TKT-100001,Confirmed with the user that the charger LED is off as well; likely a failed power adapter.,f1000000-0000-4000-8000-000000000002
-d7000000-0000-4000-8000-000000000002,TKT-100003,Checked SM59 - RFC destination shows a timeout. Escalating to Basis on-call.,f1000000-0000-4000-8000-000000000006
-d7000000-0000-4000-8000-000000000003,TKT-100003,Applied SAP Note 3123456 and adjusted the RFC timeout parameter. Monitoring for recurrence.,f1000000-0000-4000-8000-000000000006
-d7000000-0000-4000-8000-000000000004,TKT-100007,Cleared the paper tray and replaced the pickup roller. Printer is back online.,f1000000-0000-4000-8000-000000000001
+ID,ticket_ticketID,comment,author
+d7000000-0000-4000-8000-000000000001,TKT-100001,Confirmed with the user that the charger LED is off as well; likely a failed power adapter.,asmith
+d7000000-0000-4000-8000-000000000002,TKT-100003,Checked SM59 - RFC destination shows a timeout. Escalating to Basis on-call.,spatel
+d7000000-0000-4000-8000-000000000003,TKT-100003,Applied SAP Note 3123456 and adjusted the RFC timeout parameter. Monitoring for recurrence.,spatel
+d7000000-0000-4000-8000-000000000004,TKT-100007,Cleared the paper tray and replaced the pickup roller. Printer is back online.,jdoe

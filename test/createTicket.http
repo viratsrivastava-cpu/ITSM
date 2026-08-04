@@ -1,10 +1,9 @@
-@base = http://localhost:4004/odata/v4/ITSMService
+@base = http://localhost:54753/odata/v4/ITSMService
 @auth = Basic amRvZTpqZG9l
 
 POST {{base}}/Tickets
 Authorization: {{auth}}
 Content-Type: application/json
-Accept: application/json
 
 {
   "ticketType": "INCIDENT",
@@ -28,17 +27,9 @@ Accept: application/json
     "language": "EN",
     "isStandard": false,
 
-    "system": {
-      "ID": "f3000000-0000-4000-8000-000000000001"
-    },
-
-    "softwareComponent": {
-      "ID": "f4000000-0000-4000-8000-000000000001"
-    },
-
-    "configurationItem": {
-      "ID": "f5000000-0000-4000-8000-000000000001"
-    },
+    "system": "SAP ECC",
+    "softwareComponent": "FI",
+    "configurationItem": "CI-0001",
 
     "softwareVersion": "7.50",
     "supportPackage": 12,
